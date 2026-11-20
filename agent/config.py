@@ -33,7 +33,8 @@ def read_env_file(path: Path) -> dict[str, str]:
 @dataclass(frozen=True)
 class Config:
     home_city: str | None = None
-    model: str = "qwen3:4b"
+    model: str = "qwen3:4b"           # voice commands: fast on CPU (reuses its instructions)
+    vision_model: str = "qwen3.5:4b"  # v3 screen explainer: can see images, slower
     ollama_url: str = "http://127.0.0.1:11434"
     whisper_model: str = "base.en"
     amazon_domain: str = "www.amazon.in"
@@ -50,6 +51,7 @@ def load_config(env_file: Path | None = None) -> Config:
     return Config(
         home_city=get("POCKETPILOT_HOME_CITY"),
         model=get("POCKETPILOT_MODEL", Config.model) or Config.model,
+        vision_model=get("POCKETPILOT_VISION_MODEL", Config.vision_model) or Config.vision_model,
         ollama_url=get("POCKETPILOT_OLLAMA_URL", Config.ollama_url) or Config.ollama_url,
         whisper_model=get("POCKETPILOT_WHISPER", Config.whisper_model) or Config.whisper_model,
         amazon_domain=get("POCKETPILOT_AMAZON", Config.amazon_domain) or Config.amazon_domain,

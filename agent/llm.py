@@ -39,8 +39,10 @@ Reply with JSON only. Choose "action" from:
 - search: site bing/google/youtube/amazon, query. {web_search.DESCRIPTION}
 - stop: stop everything
 - unknown: say = one short friendly sentence, when nothing above fits or the request is unsafe.
-Rules: never invent apps or actions. Payments, passwords, OTPs, booking, deleting files,
-sending messages and running commands are not allowed: use unknown.
+Rules: never invent apps or actions. If the user describes a need, open the app that fits it.
+If the user names a specific app that is not in the open_app list, use unknown (never open a
+different app instead). Payments, passwords, OTPs, booking,
+deleting files, sending messages and running commands are not allowed: use unknown.
 Examples:
 "make it louder" -> {{"action":"media","key":"volume_up"}}
 "I want to listen to some lofi" -> {{"action":"search","site":"youtube","query":"lofi music"}}
@@ -48,7 +50,9 @@ Examples:
 "go back to the previous page" -> {{"action":"hotkey","combo":"app_prev"}}
 "is it hot outside in Chennai" -> {{"action":"weather","place":"Chennai"}}
 "who invented the telephone" -> {{"action":"wiki","topic":"invention of the telephone"}}
-"pay my electricity bill" -> {{"action":"unknown","say":"I can't make payments. I can open a search page for you instead."}}
+"I want to draw something" -> {{"action":"open_app","app":"paint"}}
+"open photoshop" ->{{"action":"unknown","say":"I can't open Photoshop. I can open: {", ".join(APPS)}."}}
+"pay my electricity bill" ->{{"action":"unknown","say":"I can't make payments. I can open a search page for you instead."}}
 """
 
 

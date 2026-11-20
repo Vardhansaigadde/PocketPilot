@@ -30,7 +30,7 @@ Hold the **mic** on the phone and speak, or **slide it right to lock** and talk 
 Common phrases are matched instantly without AI (about 0.5 s from the phone mic). Anything else ("I want to listen to some lofi") goes to a small AI model running on your laptop through Ollama, which can only answer with one of the actions above.
 
 ### Voice setup (one time)
-1. Install **Ollama** (free) from [ollama.com](https://ollama.com), then in PowerShell: `ollama pull qwen3:4b` (about 2.5 GB). Without it, the fixed phrases above still work.
+1. Install **Ollama** (free) from [ollama.com](https://ollama.com), then in PowerShell: `ollama pull qwen3:4b` (about 2.5 GB). It answers in about 4 s on a CPU (scored 20/20 on `scripts/check_ai.py`) because Ollama reuses its instructions between commands. The v3 screen explainer will also use `qwen3.5:4b`, which can see images. Without it, the fixed phrases above still work.
 2. `python -m pip install -r requirements.txt`. The first start downloads the Whisper speech model (about 145 MB) and the wake-word model (about 5 MB).
 3. Optional: copy `.env.example` to `.env` and set your home city (for "weather" with no city) and your GitHub repo URL (Wikipedia asks apps for a contact link).
 
@@ -135,6 +135,14 @@ python -m pytest
 ```
 
 Tests use a fake controller, fake internet and a fake AI model, so they never move your real mouse, open apps or need Ollama.
+
+To check the real local AI model on 20 open-ended phrases (including requests it must refuse, like payments or deleting files), with Ollama running:
+
+```powershell
+python scripts/check_ai.py
+```
+
+It prints which command the model picks for each phrase, how long it took, and the overall accuracy. Nothing is executed.
 
 ## Roadmap
 

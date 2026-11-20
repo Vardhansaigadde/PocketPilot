@@ -127,7 +127,9 @@ _GRID_CLICK = re.compile(
     r"(?P<n>[\w-]+(?: [\w-]+)?)$",
     re.I,
 )
-_TYPE = re.compile(r"^(?:type|write|type in|enter text)[ :,]+(?P<text>.+)$", re.I | re.S)
+# Only "type ..." types text. "write ..." is left to the AI, because people say
+# "I want to write some code" or "write an email" and mean something else.
+_TYPE = re.compile(r"^(?:type|type in|type out|enter text)[ :,]+(?P<text>.+)$", re.I | re.S)
 _PRESS = re.compile(r"^(?:press|hit|push)(?: the)? (?P<key>.+?)(?: key| button)?$", re.I)
 _OPEN = re.compile(r"^(?:open|launch|start|run|bring up|go to) (?P<app>.+)$", re.I)
 _WEATHER = re.compile(

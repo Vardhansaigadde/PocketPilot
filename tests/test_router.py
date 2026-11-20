@@ -76,6 +76,8 @@ def test_type_keeps_original_case():
         "reply to Ravi that I'm late",
         "what is this",
         "make it brighter",
+        "I want to write some code",    # must not type "some code"
+        "write an email to my teacher",
     ],
 )
 def test_unknown_phrases_go_to_the_ai(said):

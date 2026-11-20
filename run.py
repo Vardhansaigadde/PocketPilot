@@ -115,10 +115,15 @@ def build_assistant(controller, args):  # noqa: ANN001, ANN201 - kept simple for
         return None
 
     cfg = load_config(ROOT / ".env")
+    from agent.apps import is_available
+    from agent.executor import start_app
+
     skills = WebSkills(make_client(contact=cfg.contact), open_in_edge, home_city=cfg.home_city,
+                       open_app_link=start_app, app_available=is_available,
                        amazon_domain=cfg.amazon_domain)
     executor = Executor(controller, Approvals(), skills=skills, grid=TkGrid())
     planner = OllamaPlanner(args.model or cfg.model, cfg.ollama_url)
+    planner.warm_up()
     transcriber = WhisperTranscriber(cfg.whisper_model)
     transcriber.preload()
     print(f"  Voice: Whisper {cfg.whisper_model}, AI model {planner.model} (Ollama)"

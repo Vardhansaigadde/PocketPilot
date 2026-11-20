@@ -143,3 +143,17 @@ def test_github_and_chatgpt_search():
     s.search("github", "pocket pilot")
     assert s.search("chatgpt", "what is 2+2") == "Asking ChatGPT: what is 2+2"
     assert opened == ["https://github.com/search?q=pocket+pilot", "https://chatgpt.com/?q=what+is+2%2B2"]
+
+
+def test_spotify_search_uses_the_web_player_without_the_app():
+    s, opened = skills({})
+    assert s.search("spotify", "dude") == "Searching Spotify for dude."
+    assert opened == ["https://open.spotify.com/search/dude"]
+
+
+def test_spotify_search_uses_the_app_when_installed():
+    links, opened = [], []
+    s = WebSkills(fake_internet({}), opened.append, open_app_link=links.append,
+                  app_available=lambda target: target == "spotify:")
+    s.search("spotify", "arijit singh & friends")
+    assert links == ["spotify:search:arijit%20singh%20%26%20friends"] and opened == []

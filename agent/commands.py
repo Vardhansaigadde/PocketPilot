@@ -101,7 +101,7 @@ class GoToCmd(_Cmd):
 
 class SearchCmd(_Cmd):
     action: Literal["search"]
-    site: Literal["bing", "google", "youtube", "amazon", "github", "chatgpt"] = "bing"
+    site: Literal["bing", "google", "youtube", "amazon", "github", "chatgpt", "spotify"] = "bing"
     query: str = Field(min_length=1, max_length=200)
 
 

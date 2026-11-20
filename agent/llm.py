@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 from typing import Any
 
 import httpx
@@ -20,6 +21,8 @@ from .assistant import DIDNT_UNDERSTAND, PlannerError
 from .commands import GRID_CELLS, BadCommand, Command, UnknownCmd, command_schema, parse_command
 
 log = logging.getLogger("pocketpilot.llm")
+
+WARM_UP_TIMEOUT_S = 180.0   # first load from disk on a CPU can take about a minute
 
 SYSTEM_PROMPT = f"""You control a Windows laptop for the user. Turn their request into exactly ONE JSON action.
 Reply with JSON only. Choose "action" from:
@@ -38,7 +41,7 @@ Reply with JSON only. Choose "action" from:
 - air_quality: place or null. {air_quality.DESCRIPTION}
 - wiki: topic. {wikipedia.DESCRIPTION}
 - goto: site = a website name or address. {websites.DESCRIPTION} Known names: {", ".join(sorted(websites.SITES))}
-- search: site bing/google/youtube/amazon/github/chatgpt, query. {web_search.DESCRIPTION}
+- search: site bing/google/youtube/amazon/github/chatgpt/spotify, query. {web_search.DESCRIPTION}
 - stop: stop everything
 - unknown: say = one short friendly sentence, when nothing above fits or the request is unsafe.
 Rules: never invent apps or actions. Prefer a useful action over unknown: when the user
@@ -75,7 +78,7 @@ def _strip_discriminator(node: Any) -> Any:
 
 class OllamaPlanner:
     def __init__(self, model: str, base_url: str = "http://127.0.0.1:11434",
-                 client: httpx.Client | None = None, timeout: float = 25.0) -> None:
+                 client: httpx.Client | None = None, timeout: float = 60.0) -> None:
         self.model = model
         self.url = base_url.rstrip("/") + "/api/chat"
         self.client = client or httpx.Client(timeout=httpx.Timeout(timeout, connect=3.0))
@@ -89,7 +92,7 @@ class OllamaPlanner:
                 {"role": "user", "content": text},
             ],
             "stream": False,
-            "keep_alive": "30m",
+            "keep_alive": "1h",   # stay in memory for an hour after each use
             "options": {"temperature": 0, "num_predict": 160},
             "format": self.schema if strict else "json",
         }
@@ -97,13 +100,25 @@ class OllamaPlanner:
             body["think"] = False   # qwen3: answer straight away, no long reasoning
         return body
 
-    def _ask(self, text: str) -> str:
+    def warm_up(self) -> None:
+        """Load the model and read its instructions in the background, so the first
+        real command is fast (a cold start can take 30+ s on a CPU)."""
+        def run() -> None:
+            try:
+                self.to_command("volume up", timeout=WARM_UP_TIMEOUT_S)
+                log.info("AI model %s ready", self.model)
+            except Exception as exc:  # Ollama not running, model not pulled...
+                log.warning("AI model not ready: %s", exc)
+        threading.Thread(target=run, name="ai-warmup", daemon=True).start()
+
+    def _ask(self, text: str, timeout: float | None = None) -> str:
+        extra = {"timeout": timeout} if timeout else {}
         try:
-            r = self.client.post(self.url, json=self._body(text, strict=True))
+            r = self.client.post(self.url, json=self._body(text, strict=True), **extra)
             if r.status_code == 400:
                 # Older Ollama or a model without "think": retry with plain JSON mode.
                 log.warning("Ollama rejected the strict request (%s); retrying", r.text[:200])
-                r = self.client.post(self.url, json=self._body(text, strict=False))
+                r = self.client.post(self.url, json=self._body(text, strict=False), **extra)
         except httpx.ConnectError as exc:
             raise PlannerError("I can't reach the AI model. Is Ollama running?") from exc
         except httpx.TimeoutException as exc:
@@ -114,8 +129,8 @@ class OllamaPlanner:
             raise PlannerError("The AI model had a problem. Try again.")
         return r.json().get("message", {}).get("content", "")
 
-    def to_command(self, text: str) -> Command:
-        content = self._ask(text)
+    def to_command(self, text: str, timeout: float | None = None) -> Command:
+        content = self._ask(text, timeout)
         try:
             data = json.loads(content)
             cmd = parse_command(data)

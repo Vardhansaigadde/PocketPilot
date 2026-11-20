@@ -1,5 +1,7 @@
 # v2 test checklist: 25 spoken commands
 
+**Result: all passed on the phone (Spotify search was added after the first run).**
+
 v2 is **done** when every command below works by voice from the **phone mic** and the **laptop mic** ("Hey Jarvis, …").
 Tick each box after it works. Note anything that went wrong in the last column.
 

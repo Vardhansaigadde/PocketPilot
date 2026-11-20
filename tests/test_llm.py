@@ -75,3 +75,20 @@ def test_400_retries_in_plain_json_mode():
 def test_timeout():
     with pytest.raises(PlannerError, match="too long"):
         planner(httpx.ReadTimeout("slow")).to_command("hi")
+
+
+def test_warm_up_sends_one_request_in_the_background():
+    import time
+
+    seen = []
+    p = planner('{"action": "media", "key": "volume_up"}', seen=seen)
+    p.warm_up()
+    for _ in range(50):
+        if seen:
+            break
+        time.sleep(0.02)
+    assert seen and seen[0]["keep_alive"] == "1h"
+
+
+def test_warm_up_never_crashes_when_ollama_is_off():
+    planner(httpx.ConnectError("refused")).warm_up()   # just logs a warning

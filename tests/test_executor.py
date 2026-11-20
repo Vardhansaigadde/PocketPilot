@@ -44,6 +44,10 @@ class FakeSkills:
         self.calls.append(("search", site, query))
         return "Searching"
 
+    def open_site(self, site):
+        self.calls.append(("site", site))
+        return f"Opening {site}."
+
 
 class Clock:
     def __init__(self):
@@ -56,7 +60,8 @@ class Clock:
 def make(clock=None):
     ctl, launched = FakeController(), []
     approvals = Approvals(clock=clock or Clock())
-    ex = Executor(ctl, approvals, skills=FakeSkills(), grid=FakeGrid(), launcher=launched.append)
+    ex = Executor(ctl, approvals, skills=FakeSkills(), grid=FakeGrid(), launcher=launched.append,
+                  app_available=lambda target: True)
     return ex, ctl, launched
 
 
@@ -261,3 +266,18 @@ def test_steps_wait_for_approve():
     msgs = Assistant(ex, sleep=lambda s: None).handle_text("scroll down then close the window then press enter")
     assert [m["t"] for m in msgs] == ["reply", "approve_request"]
     assert ("key", "enter") not in ctl.calls
+
+
+def test_missing_app_opens_its_website_instead():
+    ex, _, launched = make()
+    ex.app_available = lambda target: target != "spotify:"
+    out = run(ex, {"action": "open_app", "app": "spotify"})
+    assert launched == []                                   # no broken app link
+    assert ex.skills.calls == [("site", "https://open.spotify.com")]
+    assert "isn't installed" in out.say and out.ok
+
+
+def test_installed_app_opens_normally():
+    ex, _, launched = make()
+    run(ex, {"action": "open_app", "app": "spotify"})
+    assert launched == ["spotify:"] and ex.skills.calls == []

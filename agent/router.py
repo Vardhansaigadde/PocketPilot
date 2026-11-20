@@ -58,7 +58,7 @@ _simple("volume up|louder|turn it up|turn up the volume|increase volume|increase
 _simple("volume down|quieter|softer|turn it down|turn down the volume|decrease volume"
         "|decrease the volume|lower the volume", MediaCmd(action="media", key="volume_down"))
 _simple("mute|unmute|mute the volume|mute sound|silence", MediaCmd(action="media", key="mute"))
-_simple("play|pause|resume|play pause|play or pause|pause the music|play the music"
+_simple("play|pause|resume|play pause|play or pause|pause the music|play the music|play it|play that"
         "|pause the video|play the video|pause music|play music",
         MediaCmd(action="media", key="play_pause"))
 _simple("next|next song|next track|skip|skip song|next video", MediaCmd(action="media", key="next"))
@@ -157,20 +157,22 @@ _AIR = re.compile(
 )
 _SEARCH_ON = re.compile(
     r"^(?:search|find|look up|look for|play|watch)(?: for)? (?P<q>.+?) on "
-    r"(?P<site>youtube|amazon|google|bing|github|chatgpt)$",
+    r"(?P<site>youtube|amazon|google|bing|github|chatgpt|spotify)$",
     re.I,
 )
 _SEARCH_SITE = re.compile(
-    r"^(?:search|find|look up|look for)(?: on)? (?P<site>youtube|amazon|google|bing|github|chatgpt)"
+    r"^(?:search|find|look up|look for)(?: on)? (?P<site>youtube|amazon|google|bing|github|chatgpt|spotify)"
     r"(?: for)? (?P<q>.+)$",
     re.I,
 )
-_SEARCH_SHORT = re.compile(r"^(?P<site>youtube|amazon|google) (?P<q>.+)$", re.I)
+_SEARCH_SHORT = re.compile(r"^(?P<site>youtube|amazon|google|spotify) (?P<q>.+)$", re.I)
 _ASK_CHATGPT = re.compile(r"^(?:ask|tell) (?:chat ?gpt|chat gpt)(?: about| to| for| that)?[ ,:]+(?P<q>.+)$", re.I)
 # "open edge then type github.com then press enter" -> three steps
 _THEN = re.compile(r"\s*,?\s+(?:and then|then|after that|and after that)\s+", re.I)
 MAX_STEPS = 5
 
+# "play dude", "play the song kesariya": find it on YouTube ("... on spotify" is matched above)
+_PLAY = re.compile(r"^(?:play|put on)(?: the song| the track| song| some| me)? (?P<q>.+)$", re.I)
 _SEARCH = re.compile(r"^(?:search|google|look up|search the web)(?: for)? (?P<q>.+)$", re.I)
 _WIKI = re.compile(
     r"^(?:who is|who was|who are|what is|what are|what was|tell me about|define|explain|wiki"
@@ -233,6 +235,9 @@ def fast_path(text: str) -> Command | None:
             site = m.group("site").lower().replace(" ", "")
             return SearchCmd(action="search", site=site,
                              query=m.group("q").strip()[:200])
+
+    if m := _PLAY.match(t):
+        return SearchCmd(action="search", site="youtube", query=m.group("q").strip()[:200])
 
     if m := _SEARCH.match(t):
         return SearchCmd(action="search", site="bing", query=m.group("q").strip()[:200])

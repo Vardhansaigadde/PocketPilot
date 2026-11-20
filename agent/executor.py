@@ -75,12 +75,14 @@ class Executor:
         skills: Skills | None = None,
         grid: Grid | None = None,
         launcher: Callable[[str], None] = start_app,
+        app_available: Callable[[str], bool] = apps.is_available,
     ) -> None:
         self.ctl = controller
         self.approvals = approvals
         self.skills = skills
         self.grid = grid
         self.launch = launcher
+        self.app_available = app_available
 
     def run(self, cmd: Command) -> Outcome:
         try:
@@ -111,8 +113,13 @@ class Executor:
             self.ctl.hotkey(cmd.combo)
             return Outcome(_SAY_HOTKEY[cmd.combo])
         if isinstance(cmd, OpenAppCmd):
-            self.launch(apps.app_target(cmd.app))
-            return Outcome(f"Opening {apps.app_label(cmd.app)}.")
+            target, label = apps.app_target(cmd.app), apps.app_label(cmd.app)
+            web = apps.WEB_FALLBACK.get(cmd.app)
+            if web and self.skills is not None and not self.app_available(target):
+                self.skills.open_site(web)
+                return Outcome(f"The {label} app isn't installed, so I opened {label} on the web.")
+            self.launch(target)
+            return Outcome(f"Opening {label}.")
         if isinstance(cmd, CloseWindowCmd):
             def close() -> str:
                 self.ctl.close_window()

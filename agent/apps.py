@@ -50,6 +50,27 @@ ALIASES: dict[str, str] = {
     "webcam": "camera", "camera app": "camera",
 }
 
+# If the app isn't installed, open its website instead.
+WEB_FALLBACK: dict[str, str] = {
+    "spotify": "https://open.spotify.com",
+    "whatsapp": "https://web.whatsapp.com",
+}
+
+
+def is_available(target: str) -> bool:
+    """Is there an app for this target? Only link-style targets ("spotify:") can be checked;
+    programs ("notepad.exe") are assumed present and Windows reports if they're not."""
+    if not target.endswith(":"):
+        return True
+    try:
+        import winreg
+
+        with winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, target[:-1]):
+            return True
+    except (ImportError, OSError):
+        return False
+
+
 assert set(APPS) == set(get_args(AppName)), "APPS and AppName must list the same apps"
 
 

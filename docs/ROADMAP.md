@@ -7,7 +7,7 @@ A version is done only when its "Done when" checks pass, tests pass, and README 
 Phone as touchpad, keyboard and media remote; QR pairing.
 - Done when: phone scans QR, moves cursor, clicks, scrolls, types with no noticeable lag.
 
-## v2 — Voice commands (Nov 30 – Dec 13) 🧪 built, testing with `docs/v2-commands.md`
+## v2 — Voice commands ✅ (done, tested on the phone with `docs/v2-commands.md`)
 Speak into the phone (mic button) or to the laptop ("Hey Pilot" wake word).
 - Speech-to-text: faster-whisper (base/small) on CPU. Wake word: openWakeWord.
 - Router: fixed commands matched instantly (fast path); anything else goes to Ollama, which returns a JSON command.

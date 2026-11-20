@@ -44,11 +44,15 @@ class WebSkills:
         open_url: Callable[[str], None],
         home_city: str | None = None,
         amazon_domain: str = "www.amazon.in",
+        open_app_link: Callable[[str], None] | None = None,
+        app_available: Callable[[str], bool] = lambda target: False,
     ) -> None:
         self.client = client
         self.open_url = open_url
         self.home_city = home_city
         self.amazon_domain = amazon_domain
+        self.open_app_link = open_app_link
+        self.app_available = app_available
 
     def _place(self, place: str | None) -> str | None:
         return (place or self.home_city or "").strip() or None
@@ -90,6 +94,9 @@ class WebSkills:
         return f"Opening {websites.label(url)}."
 
     def search(self, site: str, query: str) -> str:
+        if site == "spotify" and self.open_app_link and self.app_available("spotify:"):
+            self.open_app_link(web_search.spotify_app_link(query))   # Spotify app installed
+            return web_search.spoken(site, query)
         url = web_search.search_url(site, query, amazon_domain=self.amazon_domain)
         self.open_url(url)
         return web_search.spoken(site, query)

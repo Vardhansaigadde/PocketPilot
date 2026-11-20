@@ -7,15 +7,15 @@ books or clicks anything on the page.
 from __future__ import annotations
 
 from typing import Literal
-from urllib.parse import quote_plus
+from urllib.parse import quote, quote_plus
 
 from pydantic import BaseModel, Field
 
-DESCRIPTION = "Open the browser on Bing, Google, YouTube, Amazon or GitHub search results, or ask ChatGPT a question."
+DESCRIPTION = "Search Bing, Google, YouTube, Amazon, GitHub or Spotify (songs), or ask ChatGPT a question."
 
-Site = Literal["bing", "google", "youtube", "amazon", "github", "chatgpt"]
+Site = Literal["bing", "google", "youtube", "amazon", "github", "chatgpt", "spotify"]
 _LABEL = {"bing": "the web", "google": "Google", "youtube": "YouTube", "amazon": "Amazon",
-          "github": "GitHub", "chatgpt": "ChatGPT"}
+          "github": "GitHub", "chatgpt": "ChatGPT", "spotify": "Spotify"}
 
 
 class SearchInput(BaseModel):
@@ -30,6 +30,8 @@ def search_url(site: str, query: str, amazon_domain: str = "www.amazon.in") -> s
         return f"https://www.youtube.com/results?search_query={q}"
     if s.site == "amazon":
         return f"https://{amazon_domain}/s?k={q}"
+    if s.site == "spotify":
+        return f"https://open.spotify.com/search/{quote(s.query.strip(), safe='')}"
     if s.site == "github":
         return f"https://github.com/search?q={q}"
     if s.site == "chatgpt":
@@ -43,6 +45,11 @@ def spoken(site: str, query: str) -> str:
     if site == "chatgpt":
         return f"Asking ChatGPT: {query}"
     return f"Searching {_LABEL.get(site, 'the web')} for {query}."
+
+
+def spotify_app_link(query: str) -> str:
+    """Search link for the Spotify desktop app."""
+    return "spotify:search:" + quote(SearchInput(site="spotify", query=query).query.strip(), safe="")
 
 
 def open_in_edge(url: str) -> None:

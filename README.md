@@ -4,7 +4,7 @@
 
 Zero cost: everything is open source and runs on your own laptop. No cloud account needed.
 
-> Status: **v1 (touchpad) works. v2 (voice commands) is built and being tested** against the [25-command checklist](docs/v2-commands.md). The AI agent and Telugu are next. See the [roadmap](#roadmap).
+> Status: **v1 (touchpad) and v2 (voice commands) work**, tested on a real phone with the [25-command checklist](docs/v2-commands.md). Next: v3 smart click and screen explainer. See the [roadmap](#roadmap).
 
 <!-- Add a demo GIF here once recorded: docs/demo-v1.gif -->
 
@@ -25,13 +25,15 @@ Hold the **mic** on the phone and speak, or **slide it right to lock** and talk 
 | "air quality in Delhi" | AQI + simple advice |
 | "who is APJ Abdul Kalam", "tell me about the Taj Mahal" | Short Wikipedia summary |
 | "search YouTube for lofi", "search Amazon for a wireless mouse", "search GitHub for pocketpilot" | Opens Edge on the search results |
+| "play Dude", "play the song Kesariya" | Finds the song on YouTube |
+| "play Dude on Spotify" | Spotify search (in the Spotify app if installed, otherwise the Spotify web player) |
 | "go to GitHub", "open ChatGPT", "visit CodeChef", "go to github.com/Vardhansaigadde/PocketPilot" | Opens that website (40 popular sites by name, or any address) |
 | "ask ChatGPT how to reverse a list in Python" | Opens ChatGPT with your question |
 | "new tab", "next tab", "go back", "refresh", "address bar" | Browser shortcuts |
 | "open Edge **then** type github.com **then** press enter" | Runs up to 5 commands in order, waiting for windows to open |
 | "stop" (or the **■** button) | Cancels everything |
 
-Common phrases are matched instantly without AI (about 0.5 s from the phone mic). Anything else ("I want to listen to some lofi") goes to a small AI model running on your laptop through Ollama, which can only answer with one of the actions above.
+Common phrases are matched instantly without AI (about 0.5 s from the phone mic). Anything else ("I want to listen to some lofi") goes to a small AI model running on your laptop through Ollama, which can only answer with one of the actions above. The model loads in the background when PocketPilot starts (up to a minute on a CPU), so it's ready by the time you speak. Apps that aren't installed (Spotify, WhatsApp) open their website instead.
 
 ### Voice setup (one time)
 1. Install **Ollama** (free) from [ollama.com](https://ollama.com), then in PowerShell: `ollama pull qwen3:4b` (about 2.5 GB). It answers in about 4 s on a CPU (scored 20/20 on `scripts/check_ai.py`) because Ollama reuses its instructions between commands. The v3 screen explainer will also use `qwen3.5:4b`, which can see images. Without it, the fixed phrases above still work.
@@ -154,7 +156,7 @@ It prints which command the model picks for each phrase, how long it took, and t
 | Version | Adds |
 | --- | --- |
 | **v1 Touchpad** ✅ | Phone touchpad, keyboard, media keys, QR pairing |
-| v2 Voice commands 🧪 | Phone mic + "Hey Jarvis" on the laptop ("Hey Pilot" later); open apps, weather, Edge/YouTube search, grid clicking |
+| **v2 Voice commands** ✅ | Phone mic + "Hey Jarvis" on the laptop ("Hey Pilot" later); open apps, weather, Edge/YouTube search, grid clicking |
 | v3 Smart click + screen explainer | "Click the Login button", "summarize this page" |
 | v4 Task agent | Multi-step tasks, WhatsApp replies with Approve, memory of what you did |
 | v5 Telugu + parent mode | Telugu voice commands and replies, simple screen for parents, Android app |

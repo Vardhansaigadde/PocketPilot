@@ -15,8 +15,8 @@ from server.protocol import HOTKEYS, KEYS, MEDIA
 
 from .apps import AppName
 
-GRID_COLS = 8
-GRID_ROWS = 5
+GRID_COLS = 12
+GRID_ROWS = 8
 GRID_CELLS = GRID_COLS * GRID_ROWS
 
 
@@ -78,6 +78,12 @@ class GridClickCmd(_Cmd):
     count: int = Field(default=1, ge=1, le=2)
 
 
+class GridZoomCmd(_Cmd):
+    """Split one grid box into 9 smaller boxes for precise clicks ("zoom 14")."""
+    action: Literal["grid_zoom"]
+    cell: int = Field(ge=1, le=GRID_CELLS)
+
+
 class SmartClickCmd(_Cmd):
     """Click a button/link by its name ("click the Login button")."""
     action: Literal["click_on"]
@@ -132,7 +138,7 @@ class UnknownCmd(_Cmd):
 Command = Annotated[
     Union[
         ScrollCmd, ClickCmd, TypeCmd, KeyCmd, MediaCmd, HotkeyCmd, OpenAppCmd,
-        CloseWindowCmd, GridCmd, GridClickCmd, SmartClickCmd, ScreenCmd, WeatherCmd, AirQualityCmd, WikiCmd,
+        CloseWindowCmd, GridCmd, GridClickCmd, GridZoomCmd, SmartClickCmd, ScreenCmd, WeatherCmd, AirQualityCmd, WikiCmd,
         GoToCmd, SearchCmd, StopCmd, UnknownCmd,
     ],
     Field(discriminator="action"),

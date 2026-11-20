@@ -19,6 +19,7 @@ from .approvals import Approvals, Pending
 from .smart_click import is_risky
 from .commands import (
     GRID_CELLS, AirQualityCmd, ClickCmd, CloseWindowCmd, Command, GoToCmd, GridClickCmd, GridCmd,
+    GridZoomCmd,
     ScreenCmd, SmartClickCmd,
     HotkeyCmd, KeyCmd, MediaCmd, OpenAppCmd, ScrollCmd, SearchCmd, StopCmd, TypeCmd,
     UnknownCmd, WeatherCmd, WikiCmd,
@@ -49,6 +50,10 @@ class Grid(Protocol):
     def show(self) -> None: ...
     def hide(self) -> None: ...
     def cell_center(self, cell: int) -> tuple[int, int]: ...
+    def zoom(self, cell: int) -> None: ...
+    def reset(self) -> None: ...
+    @property
+    def cells(self) -> int: ...
 
 
 @dataclass
@@ -140,22 +145,8 @@ class Executor:
                 return "Closed the window."
             pending = self.approvals.request("Close the active window?", close)
             return Outcome("Approve on your phone to close the window.", approval=pending)
-        if isinstance(cmd, GridCmd):
-            if self.grid is None:
-                return Outcome("The grid isn't available.", ok=False)
-            if cmd.show:
-                self.grid.show()
-                return Outcome(f"Grid on. Say click and a number from 1 to {GRID_CELLS}.")
-            self.grid.hide()
-            return Outcome("Grid off.")
-        if isinstance(cmd, GridClickCmd):
-            if self.grid is None:
-                return Outcome("The grid isn't available.", ok=False)
-            x, y = self.grid.cell_center(cmd.cell)
-            self.grid.hide()
-            self.ctl.move_to(x, y)
-            self.ctl.click(cmd.button, cmd.count)
-            return Outcome(f"Clicked {cmd.cell}.")
+        if isinstance(cmd, (GridCmd, GridZoomCmd, GridClickCmd)):
+            return self._grid(cmd)
         if isinstance(cmd, SmartClickCmd):
             return self._smart_click(cmd)
         if isinstance(cmd, ScreenCmd):
@@ -177,6 +168,30 @@ class Executor:
         if isinstance(cmd, UnknownCmd):
             return Outcome(cmd.say, ok=False)
         return Outcome("Sorry, I can't do that yet.", ok=False)  # pragma: no cover
+
+    def _grid(self, cmd: GridCmd | GridZoomCmd | GridClickCmd) -> Outcome:
+        if self.grid is None:
+            return Outcome("The grid isn't available.", ok=False)
+        g = self.grid
+        if isinstance(cmd, GridCmd):
+            if cmd.show:
+                g.show()
+                return Outcome(f"Grid on. Say click and a number from 1 to {g.cells}, "
+                               "or zoom and a number for smaller boxes.")
+            g.hide()
+            g.reset()
+            return Outcome("Grid off.")
+        if not 1 <= cmd.cell <= g.cells:
+            return Outcome(f"Say a number from 1 to {g.cells}.", ok=False)
+        if isinstance(cmd, GridZoomCmd):
+            g.zoom(cmd.cell)
+            return Outcome(f"Zoomed into box {cmd.cell}. Say click and a number from 1 to {g.cells}.")
+        x, y = g.cell_center(cmd.cell)
+        g.hide()
+        g.reset()
+        self.ctl.move_to(x, y)
+        self.ctl.click(cmd.button, cmd.count)
+        return Outcome(f"Clicked {cmd.cell}.")
 
     def _smart_click(self, cmd: SmartClickCmd) -> Outcome:
         if self.clicker is None:

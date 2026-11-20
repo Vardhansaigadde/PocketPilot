@@ -13,7 +13,7 @@ from skills.websites import resolve as resolve_site
 from .apps import app_list_text, find_app
 from .commands import (
     GRID_CELLS, UnknownCmd, AirQualityCmd, ClickCmd, CloseWindowCmd, Command, GoToCmd, GridClickCmd, GridCmd,
-    HotkeyCmd, KeyCmd, MediaCmd, OpenAppCmd, ScreenCmd, ScrollCmd, SearchCmd, SmartClickCmd, StopCmd,
+    GridZoomCmd, HotkeyCmd, KeyCmd, MediaCmd, OpenAppCmd, ScreenCmd, ScrollCmd, SearchCmd, SmartClickCmd, StopCmd,
     TypeCmd,
     WeatherCmd, WikiCmd,
 )
@@ -29,7 +29,8 @@ _NUMBER_WORDS = {
     "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8,
     "nine": 9, "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14,
     "fifteen": 15, "sixteen": 16, "seventeen": 17, "eighteen": 18, "nineteen": 19,
-    "twenty": 20, "thirty": 30, "forty": 40, "to": 2, "too": 2, "for": 4, "won": 1,
+    "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70,
+    "eighty": 80, "ninety": 90, "to": 2, "too": 2, "for": 4, "won": 1,
 }
 
 _KEY_NAMES = {
@@ -169,6 +170,8 @@ _CLICK_ON = re.compile(
     r"(?P<target>.+?)(?: button| link| tab| icon| option)?$",
     re.I,
 )
+_ZOOM = re.compile(r"^(?:zoom|zoom in|zoom into|zoom in on|zoom on|closer|closer to)(?: box| number| cell)? "
+                   r"(?P<n>[\w-]+(?: [\w-]+)?)$", re.I)
 _TYPE = re.compile(r"^(?:type|type in|type out|enter text)[ :,]+(?P<text>.+)$", re.I | re.S)
 _PRESS = re.compile(r"^(?:press|hit|push)(?: the)? (?P<key>.+?)(?: key| button)?$", re.I)
 _OPEN = re.compile(r"^(?:open|launch|start|run|bring up|go to|visit|navigate to|take me to"
@@ -221,6 +224,11 @@ def fast_path(text: str) -> Command | None:
 
     if m := _SCROLL.match(low):
         return _scroll(m)
+
+    if m := _ZOOM.match(low):
+        n = _number(m.group("n"))
+        if n is not None and 1 <= n <= GRID_CELLS:
+            return GridZoomCmd(action="grid_zoom", cell=n)
 
     if m := _GRID_CLICK.match(low):
         n = _number(m.group("n"))

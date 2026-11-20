@@ -4,7 +4,7 @@
 
 Zero cost: everything is open source and runs on your own laptop. No cloud account needed.
 
-> Status: **v1 (touchpad) and v2 (voice commands) work**, tested on a real phone with the [25-command checklist](docs/v2-commands.md). **v3 (smart click + screen explainer) is built** and being tested with the [v3 checklist](docs/v3-tests.md). See the [roadmap](#roadmap).
+> Status: **v1 (touchpad) and v2 (voice commands) work**, tested on a real phone with the [25-command checklist](docs/v2-commands.md). **v3 (smart click + screen explainer) works** too ([v3 checklist](docs/v3-tests.md)). Next: v4, the task agent. See the [roadmap](#roadmap).
 
 <!-- Add a demo GIF here once recorded: docs/demo-v1.gif -->
 
@@ -34,7 +34,8 @@ Hold the **mic** on the phone and speak, or **slide it right to lock** and talk 
 | "switch app", "show desktop" | Windows shortcuts |
 | "open Chrome / Edge / Notepad / Calculator / File Explorer / Settings / WhatsApp / Spotify / VS Code / Paint / Word / Excel / PowerPoint / Camera" | Opens that app |
 | "close the window" | Asks **Approve** on the phone first |
-| "show grid" → "click 14" | Numbered grid over the screen; clicks the middle of box 14 |
+| "show grid" → "click 14" | 96 numbered boxes over the screen; clicks the middle of box 14 |
+| "zoom 14" → "click 5" | Splits box 14 into 9 smaller boxes for tiny buttons, then clicks one |
 | "weather", "weather in Hyderabad", "when is sunset" | Open-Meteo forecast |
 | "air quality in Delhi" | AQI + simple advice |
 | "who is APJ Abdul Kalam", "tell me about the Taj Mahal" | Short Wikipedia summary |
@@ -171,7 +172,7 @@ It prints which command the model picks for each phrase, how long it took, and t
 | --- | --- |
 | **v1 Touchpad** ✅ | Phone touchpad, keyboard, media keys, QR pairing |
 | **v2 Voice commands** ✅ | Phone mic + "Hey Jarvis" on the laptop ("Hey Pilot" later); open apps, weather, Edge/YouTube search, grid clicking |
-| v3 Smart click + screen explainer 🧪 | "Click the Login button", "summarize this page", "explain this error" |
+| **v3 Smart click + screen explainer** ✅ | "Click the Login button", "summarize this page", "explain this error" |
 | v4 Task agent | Multi-step tasks, WhatsApp replies with Approve, memory of what you did |
 | v5 Telugu + parent mode | Telugu voice commands and replies, simple screen for parents, Android app |
 | v6 Macros + MCP | "Watch me once" skills, MCP server for other AI apps |

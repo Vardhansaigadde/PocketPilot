@@ -16,7 +16,7 @@ Speak into the phone (mic button) or to the laptop ("Hey Pilot" wake word).
 - Spoken or on-screen reply on the phone.
 - Done when: 25 spoken commands work from phone and laptop mic.
 
-## v3 — Smart click + screen explainer (Dec 14 – Jan 3) 🧪 built, testing with `docs/v3-tests.md`
+## v3 — Smart click + screen explainer ✅ (done, tested with `docs/v3-tests.md`; grid now 96 boxes + zoom)
 - "Click the Login button": Windows UI Automation (pywinauto) finds controls by name; fallback = screenshot + EasyOCR, then a local vision model (Qwen-VL / LLaVA via Ollama).
 - Screen explainer: "what's on my screen?", "summarize this page", "explain this error".
 - Done when: smart click hits the right target on 10 test screens; summaries correct on 5 test pages.

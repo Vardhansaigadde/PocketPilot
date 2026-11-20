@@ -1,5 +1,7 @@
 # v3 test checklist: smart click + screen explainer
 
+**Result: all passed on the laptop and phone.** After testing, the grid was made finer: 96 boxes, plus "zoom N" for 9 smaller boxes.
+
 v3 is **done** when smart click hits the right target on the 10 screens below, and summaries are
 correct on the 5 pages. Say each command with the phone mic (or "Hey Jarvis, ...").
 Start with `python run.py` and wait about a minute for the AI model to load.

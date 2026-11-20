@@ -11,17 +11,30 @@ from tests.test_dispatch import FakeController
 
 
 class FakeGrid:
+    """Like TkGrid, without a window: 96 boxes, zoom gives 9."""
+
     def __init__(self):
         self.visible = False
+        self.zoomed = None
+
+    @property
+    def cells(self):
+        return 9 if self.zoomed else 96
 
     def show(self):
-        self.visible = True
+        self.visible, self.zoomed = True, None
 
     def hide(self):
         self.visible = False
 
+    def reset(self):
+        self.zoomed = None
+
+    def zoom(self, cell):
+        self.zoomed = cell
+
     def cell_center(self, cell):
-        return (cell * 10, cell * 20)
+        return (cell * 10, cell * 20) if not self.zoomed else (self.zoomed * 100 + cell, 0)
 
 
 class FakeSkills:
@@ -336,3 +349,21 @@ def test_screen_command_tells_the_phone_to_wait():
     early.clear()
     Assistant(ex, notify=early.extend).handle_text("read the screen")    # fast: no wait message
     assert early == []
+
+
+def test_grid_zoom_then_click_inside_the_box():
+    ex, ctl, _ = make()
+    run(ex, {"action": "grid", "show": True})
+    out = run(ex, {"action": "grid_zoom", "cell": 14})
+    assert "1 to 9" in out.say
+    run(ex, {"action": "grid_click", "cell": 5})
+    assert ctl.calls == [("move_to", 1405, 0), ("click", "left", 1)]
+    assert ex.grid.zoomed is None and not ex.grid.visible      # back to normal afterwards
+
+
+def test_grid_number_too_big_after_zoom_is_refused():
+    ex, ctl, _ = make()
+    run(ex, {"action": "grid", "show": True})
+    run(ex, {"action": "grid_zoom", "cell": 14})
+    out = run(ex, {"action": "grid_click", "cell": 40})
+    assert not out.ok and "1 to 9" in out.say and ctl.calls == []

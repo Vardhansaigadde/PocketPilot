@@ -37,6 +37,7 @@ Reply with JSON only. Choose "action" from:
 - close_window: close the active window (the user will be asked to approve)
 - grid: show true/false (numbered grid over the screen for clicking)
 - grid_click: cell 1-{GRID_CELLS}, button, count
+- grid_zoom: cell (split that grid box into 9 smaller boxes)
 - click_on: target = the name of a button, link or tab on screen, button, count
 - screen: mode describe (what's on screen, what am I doing/looking at) / summarize (what a page or article
   says) / explain_error / read (read the text aloud)

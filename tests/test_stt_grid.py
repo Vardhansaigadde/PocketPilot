@@ -7,20 +7,35 @@ import wave
 
 import pytest
 
-from agent.grid import cell_center
+from agent.grid import Layout, full_screen
 
 
-def test_grid_corners_and_middle():
-    assert cell_center(1, 1600, 1000) == (100, 100)
-    assert cell_center(8, 1600, 1000) == (1500, 100)
-    assert cell_center(9, 1600, 1000) == (100, 300)
-    assert cell_center(40, 1600, 1000) == (1500, 900)
+def test_96_boxes_over_the_screen():
+    g = full_screen(1920, 1080)
+    assert g.cells == 96
+    assert g.cell_center(1) == (80, 68)          # boxes are 160 x 135
+    assert g.cell_center(12) == (1840, 68)
+    assert g.cell_center(13) == (80, 202)
+    assert g.cell_center(96) == (1840, 1012)
 
 
-@pytest.mark.parametrize("bad", [0, 41, -3])
+@pytest.mark.parametrize("bad", [0, 97, -3])
 def test_grid_rejects_out_of_range(bad):
     with pytest.raises(ValueError):
-        cell_center(bad, 1600, 1000)
+        full_screen(1920, 1080).cell_center(bad)
+
+
+def test_zoom_splits_one_box_into_nine():
+    z = full_screen(1920, 1080).zoom(14)           # box 14 = (160, 135, 160, 135)
+    assert z == Layout(160, 135, 160, 135, 3, 3) and z.cells == 9
+    assert z.cell_center(1) == (187, 158)
+    assert z.cell_center(5) == (240, 202)          # middle of box 14
+    assert z.cell_center(9) == (293, 248)
+
+
+def test_zoom_twice_gets_even_smaller():
+    z = full_screen(1920, 1080).zoom(14).zoom(5)
+    assert z.w == 53 and z.h == 45
 
 
 def wav_bytes(seconds=1.0, rate=44100):

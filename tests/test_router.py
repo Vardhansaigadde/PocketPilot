@@ -158,3 +158,15 @@ def test_command_tools_are_always_refused(said):
 def test_whatsapp_phrasings_from_real_use(said, contact, kind, text):
     cmd = fast_path(said)
     assert (cmd.action, cmd.contact, cmd.kind, cmd.text) == ("whatsapp", contact, kind, text)
+
+
+
+@pytest.mark.parametrize("said, contact, kind, text", [
+    ("message amma heart hi", "amma heart", "message", "hi"),
+    ("message just amma hi", "just amma", "message", "hi"),
+    ("call amma heart", "amma heart", "voice_call", None),
+    ("message amma heart", "amma heart", "open", None),
+])
+def test_same_name_contacts_by_voice(said, contact, kind, text):
+    cmd = fast_path(said)
+    assert (cmd.contact, cmd.kind, cmd.text) == (contact, kind, text)

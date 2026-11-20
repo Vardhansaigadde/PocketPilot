@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 
 from skills.currency import code as currency_code
+from .smart_click import EMOJI_WORD_SET
 from skills.websites import resolve as resolve_site
 
 from .apps import app_list_text, find_app
@@ -203,11 +204,13 @@ _WA_MSG = re.compile(
 # "send amma a message saying I'm coming"
 _WA_SEND = re.compile(r"^send (?P<who>.+?) a (?:whatsapp )?message(?: that| saying|:) (?P<text>.+)$", re.I | re.S)
 # "message kiddu hi" (no "that"): the first word is the name
-_WA_MSG_SHORT = re.compile(r"^(?:message|msg|text|whatsapp) (?:to )?(?P<who>[\w'-]+)" + _ON_WA + r"[ ,:.]+(?P<text>.+)$",
-                           re.I | re.S)
+# the name may carry "just"/"only" in front or an emoji word after it: "just amma", "amma heart"
+_NAME = (r"(?:(?:just|only|plain) )?[\w'-]+(?: (?:" + "|".join(sorted(EMOJI_WORD_SET)) + r"))?")
+_WA_MSG_SHORT = re.compile(r"^(?:message|msg|text|whatsapp) (?:to )?(?P<who>" + _NAME + ")" + _ON_WA
+                           + r"[ ,:.]+(?P<text>.+)$", re.I | re.S)
 # "send hi to kidduuu", "send good night to amma on whatsapp"
 _WA_SEND_TO = re.compile(r"^send (?P<text>.+?) to (?P<who>[\w'-]+(?: [\w'-]+)?)" + _ON_WA + "$", re.I | re.S)
-_WA_JUST_NAME = re.compile(r"^(?:message|msg|text) (?P<who>[\w'-]+)" + _ON_WA + "$", re.I)
+_WA_JUST_NAME = re.compile(r"^(?:message|msg|text) (?P<who>" + _NAME + ")" + _ON_WA + "$", re.I)
 _WA_OPEN = re.compile(r"^(?:open|show|go to) (?:my |the )?(?:whatsapp )?chat (?:with|of) (?P<who>.+?)" + _ON_WA + "$",
                       re.I)
 # "convert 100 dollars to rupees", "how much is 50 euros in rupees", "dollar to rupee", "dollar rate"
@@ -342,6 +345,8 @@ def fast_path(text: str) -> Command | None:
         if m := rx.match(t):
             who = re.sub(r"\s+(?:on|in|via|over|through)$", "", m.group("who").strip(" ,."), flags=re.I)
             text = m.group("text").strip()
+            if text.lower().strip(" .!") in EMOJI_WORD_SET:   # "message amma heart": that's the name
+                return WhatsAppCmd(action="whatsapp", contact=f"{who} {text.strip(' .!')}"[:60], kind="open")
             if who and text:
                 return WhatsAppCmd(action="whatsapp", contact=who[:60], kind="message", text=text[:500])
 

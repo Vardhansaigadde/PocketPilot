@@ -153,3 +153,12 @@ def test_slow_ui_automation_falls_back_to_ocr_and_is_remembered():
     now[0] += 500                              # much later: tries UI Automation again
     finder.find("kidd u")
     assert len(calls) == 2
+
+
+
+def test_emoji_count_as_words():
+    from agent.smart_click import normalize
+
+    assert normalize("Amma ❤️") == "amma heart" and normalize("Kidduuu 🎀") == "kidduuu ribbon"
+    assert score("amma heart", "Amma ❤️") == 1.0
+    assert score("amma heart", "Amma") == 0.0               # the heart means the other chat

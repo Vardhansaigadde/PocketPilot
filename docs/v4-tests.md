@@ -15,6 +15,8 @@ Start with `python run.py` and wait about a minute. Say each command with the ph
 | 6 | message kidd u that hi | Finds "Kidduuu" despite the spelling | ☐ |
 | 7 | message nobody that hi | "I couldn't find nobody in WhatsApp", nothing typed | ☐ |
 | 8 | (draft waiting) press ■ Stop | Draft is cleared, nothing sent | ☐ |
+| 9 | call amma (with "Amma ❤️" and "Amma" both saved) | Asks: say 'amma heart' or 'just amma' | ☐ |
+| 10 | message amma heart that hi | Approve card shows "Amma ❤️" | ☐ |
 
 ## Multi-step tasks
 

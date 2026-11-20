@@ -71,8 +71,31 @@ class Candidate:
         return (l + r) // 2, (t + b) // 2
 
 
+# Emoji people put in contact names, as the word you'd say for them
+# ("message amma heart" finds "Amma ❤️").
+EMOJI_WORDS = {
+    **dict.fromkeys("❤♥💖💗💓💞💕💘💝🧡💛💚💙💜🖤🤍🤎💟", "heart"),
+    "🎀": "ribbon", "⭐": "star", "🌟": "star", "✨": "sparkle",
+    **dict.fromkeys("🌸🌺🌹🌼🌻💐🌷", "flower"),
+    "👑": "crown", "🦋": "butterfly", "🌙": "moon", "☀": "sun", "🌈": "rainbow", "🔥": "fire",
+    "💎": "diamond", "🍫": "chocolate", "🏠": "home", "🐼": "panda", "🐱": "cat", "🐶": "dog",
+    "👸": "princess", "🤴": "prince", "😊": "smile", "😀": "smile", "☺": "smile", "🥰": "love", "😍": "love",
+}
+EMOJI_WORD_SET = set(EMOJI_WORDS.values())
+
+
+def emoji_to_words(text: str) -> str:
+    out = []
+    for ch in text:
+        if ch in EMOJI_WORDS:
+            out.append(f" {EMOJI_WORDS[ch]} ")
+        elif ch not in "️‍":          # emoji style/joiner characters
+            out.append(ch)
+    return "".join(out)
+
+
 def normalize(text: str) -> str:
-    t = re.sub(r"[^\w\s+#.-]", " ", text.lower())
+    t = re.sub(r"[^\w\s+#.-]", " ", emoji_to_words(text).lower())
     return " ".join(t.split())
 
 

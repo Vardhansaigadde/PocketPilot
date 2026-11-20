@@ -67,7 +67,7 @@ def typed(ctl):
 
 def test_open_chat_finds_contact_with_speech_spelling():
     w, wa, _ = make()
-    assert w.open_chat("kidd u") == "Kidduuu"
+    assert w.open_chat("kidd u") == "Kidduuu 🎀"            # emoji kept for the Approve card
     assert wa.open == "Kidduuu 🎀"
 
 
@@ -173,7 +173,7 @@ def test_problems_become_polite_replies():
     assert not out.ok and "couldn't find nobody" in out.say
 
 
-@pytest.mark.parametrize("heard, searched", [("Amah", "Amma"), ("AMMA", "Amma"), ("amma❤️ in watsapp", "Amma"),
+@pytest.mark.parametrize("heard, searched", [("Amah", "Amma"), ("AMMA", "Amma"), ("amma❤️ in watsapp", "amma heart"),
                                              ("kidd u", "Kidduuu"), ("Ravi", "Ravi")])
 def test_contact_names_snap_to_the_contact_list(heard, searched):
     w, _, _ = make(contacts_list=["Amma", "Kidduuu"])
@@ -232,3 +232,79 @@ def test_whatsapp_falling_behind_midway_stops_before_sending():
     with pytest.raises(WhatsAppError):
         ready.go()
     assert ("key", "enter") not in ctl.calls
+
+
+
+# ---- two chats with the same name: "Amma ❤️" and "Amma" ------------------------------------------
+
+def two_ammas():
+    return make(contacts=("Amma ❤️", "Amma", "Appa"))
+
+
+def test_same_name_asks_instead_of_guessing():
+    w, wa, ctl = two_ammas()
+    with pytest.raises(WhatsAppError) as err:
+        w.open_chat("amma")
+    msg = str(err.value)
+    assert "Amma ❤️" in msg and "'amma heart'" in msg and "'just amma'" in msg
+    assert wa.open is None                                   # nothing opened, nothing typed after
+
+
+def test_saying_the_emoji_picks_that_chat():
+    w, wa, _ = two_ammas()
+    assert w.open_chat("amma heart") == "Amma ❤️"
+    assert typed_search(w, wa) == "amma"                     # WhatsApp search gets the plain name
+
+
+def test_just_amma_picks_the_plain_one():
+    w, wa, _ = two_ammas()
+    assert w.open_chat("just amma") == "Amma"
+
+
+def test_default_from_the_contact_list():
+    w, wa, _ = make(contacts=("Amma ❤️", "Amma"), contacts_list=["Amma ❤️"])
+    assert w.open_chat("amma") == "Amma ❤️"                 # POCKETPILOT_CONTACTS=Amma ❤️
+
+
+def test_approve_card_shows_the_exact_contact():
+    w, wa, ctl = two_ammas()
+    ex = Executor(ctl, Approvals(), whatsapp=w, app_available=lambda t: True)
+    out = run(ex, {"action": "whatsapp", "contact": "amma heart", "kind": "message", "text": "hi"})
+    assert out.approval.text == 'Send to Amma ❤️ on WhatsApp: "hi"?'
+    out = run(ex, {"action": "whatsapp", "contact": "amma", "kind": "voice_call"})
+    assert out.approval is None and not out.ok and "just amma" in out.say
+
+
+def typed_search(w, wa):
+    calls = [c for c in w.ctl.calls if c[0] == "type_text"]
+    return calls[0][1]
+
+
+
+def test_leftover_search_is_cleared_first():
+    """With old text in the search box WhatsApp drops its label; clear it, then search."""
+    wa = FakeWhatsApp()
+    ctl = Ctl(wa)
+    state = {"leftover": True}
+
+    def controls(hwnd):
+        out = wa.controls(hwnd)
+        if state["leftover"]:
+            out = [c for c in out if not c.name.startswith("Search")] + [c_("End icon button", "Button", 300, 50)]
+        return out
+
+    real_click = ctl.click
+
+    def click(button, count):
+        if ctl.pos == (320, 60):                      # the clear (x) button
+            state["leftover"] = False
+        real_click(button, count)
+
+    ctl.click = click
+    w = WhatsApp(ctl, controls=controls, windows=lambda: [1], bring_front=lambda h: None,
+                 start=lambda: None, sleep=lambda s: None, front=lambda h: True)
+    assert w.open_chat("appa") == "Appa"
+
+
+def c_(name, kind, x, y):
+    return Candidate(name, kind, (x, y, x + 40, y + 20))

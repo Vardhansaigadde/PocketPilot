@@ -10,7 +10,7 @@ Zero cost: everything is open source and runs on your own laptop. No cloud accou
 
 ## Voice commands (v2)
 
-Hold **🎤** on the phone and speak, type in the command box, or say **"Hey Jarvis"** to the laptop and then your command. The reply shows on the phone and is spoken out loud.
+Hold the **mic** on the phone and speak, or **slide it right to lock** and talk hands-free, then tap ✓ to send (slide left to cancel, like a WhatsApp voice note). You can also type in the command box, or say **"Hey Jarvis"** to the laptop and then your command. The reply shows on the phone and is spoken out loud.
 
 | Say | What happens |
 | --- | --- |

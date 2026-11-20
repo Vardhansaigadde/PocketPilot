@@ -117,18 +117,59 @@
   $('#denyBtn').addEventListener('click', () => answer(false));
   dlg.addEventListener('cancel', (e) => { e.preventDefault(); answer(false); });
 
-  // ---- hold-to-talk mic -------------------------------------------------------
+  // ---- mic: hold to talk, slide right to lock (hands-free), slide left to cancel ------
+  // Works like WhatsApp voice notes. Locked: keep talking with your thumb off,
+  // then tap the ✓ button to send (or ■ to throw it away).
+  const MAX_LOCKED_MS = 20000;   // the laptop listens to at most 20 s
+  const LOCK_PX = 60;            // slide this far right to lock
+  const CANCEL_PX = 80;          // slide this far left to cancel
+  const voiceRow = $('.voice');
+  const micIcon = mic.querySelector('use');
+  const recBar = $('#recBar');
+  const recTime = $('#recTime');
+  const recHint = $('#recHint');
+
   let recording = false;
+  let locked = false;
   let recorder = null;
   let stream = null;
   let chunks = [];
   let startedAt = 0;
   let stopTimer = null;
+  let clockTimer = null;
   let discard = false;
 
   function pickType() {
     const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
     return types.find((t) => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
+  }
+
+  function recordingUI(on) {
+    voiceRow.classList.toggle('recording', on);
+    recBar.hidden = !on;
+    clearInterval(clockTimer);
+    if (on) {
+      const tick = () => {
+        const s = Math.floor((Date.now() - startedAt) / 1000);
+        recTime.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+      };
+      tick();
+      clockTimer = setInterval(tick, 250);
+    }
+  }
+
+  function setLocked(on) {
+    locked = on;
+    voiceRow.classList.toggle('locked', on);
+    micIcon.setAttribute('href', on ? '#i-check' : '#i-mic');
+    mic.setAttribute('aria-label', on ? 'Send recording' : 'Hold to talk, slide right to lock');
+    recHint.textContent = on ? 'Hands-free · tap ✓' : '→ lock  ·  ← cancel';
+    mic.style.transform = '';
+    if (on) {
+      clearTimeout(stopTimer);
+      stopTimer = setTimeout(stopRecording, Math.max(1000, MAX_LOCKED_MS - (Date.now() - startedAt)));
+      if (navigator.vibrate) navigator.vibrate(20);
+    }
   }
 
   async function startRecording() {
@@ -155,6 +196,8 @@
     recording = true;
     startedAt = Date.now();
     mic.classList.add('rec');
+    setLocked(false);
+    recordingUI(true);
     if (navigator.vibrate) navigator.vibrate(15);
     if ('speechSynthesis' in window) speechSynthesis.cancel();
     stopTimer = setTimeout(stopRecording, MAX_REC_MS);
@@ -165,6 +208,8 @@
     if (!recording) return;
     recording = false;
     mic.classList.remove('rec');
+    setLocked(false);
+    recordingUI(false);
     if (recorder && recorder.state !== 'inactive') recorder.stop();
   }
 
@@ -178,7 +223,7 @@
     stream = null;
     const long = Date.now() - startedAt >= MIN_REC_MS;
     if (discard || !long || !chunks.length) {
-      if (!discard && !long) show('Hold the mic button while you speak.', true, 2500);
+      if (!discard && !long) show('Hold the mic while you speak, or slide it right for hands-free.', true, 3000);
       return;
     }
     const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
@@ -188,16 +233,42 @@
   }
 
   let pressed = false;
+  let startX = 0;
   mic.addEventListener('pointerdown', async (e) => {
     e.preventDefault();
+    if (recording && locked) {           // locked: this tap sends it
+      stopRecording();
+      return;
+    }
     pressed = true;
+    startX = e.clientX;
     try { mic.setPointerCapture(e.pointerId); } catch { /* ignore */ }
     await startRecording();
     // Released while the mic was still starting (e.g. the permission prompt)?
-    if (!pressed && recording) cancelRecording();
+    if (!pressed && recording && !locked) cancelRecording();
   });
-  mic.addEventListener('pointerup', () => { pressed = false; stopRecording(); });
-  mic.addEventListener('pointercancel', () => { pressed = false; cancelRecording(); });
+  mic.addEventListener('pointermove', (e) => {
+    if (!pressed || !recording || locked) return;
+    const dx = e.clientX - startX;
+    mic.style.transform = `translateX(${Math.max(-CANCEL_PX, Math.min(LOCK_PX, dx))}px)`;
+    if (dx >= LOCK_PX) {
+      setLocked(true);
+    } else if (dx <= -CANCEL_PX) {
+      pressed = false;
+      cancelRecording();
+      show('Cancelled.', true, 1500);
+    }
+  });
+  mic.addEventListener('pointerup', () => {
+    pressed = false;
+    mic.style.transform = '';
+    if (!locked) stopRecording();
+  });
+  mic.addEventListener('pointercancel', () => {
+    pressed = false;
+    mic.style.transform = '';
+    if (!locked) cancelRecording();
+  });
   mic.addEventListener('contextmenu', (e) => e.preventDefault());
 
   // ---- "speak replies" setting --------------------------------------------------

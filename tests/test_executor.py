@@ -281,3 +281,58 @@ def test_installed_app_opens_normally():
     ex, _, launched = make()
     run(ex, {"action": "open_app", "app": "spotify"})
     assert launched == ["spotify:"] and ex.skills.calls == []
+
+
+# ---- smart click ----------------------------------------------------------------------------
+
+class FakeClicker:
+    def __init__(self, hit):
+        self.hit, self.asked = hit, []
+
+    def find(self, target):
+        self.asked.append(target)
+        return self.hit
+
+
+def test_smart_click_moves_and_clicks():
+    from agent.smart_click import Candidate
+
+    ex, ctl, _ = make()
+    ex.clicker = FakeClicker(Candidate("Equals", "Button", (100, 200, 140, 240)))
+    out = run(ex, {"action": "click_on", "target": "equals"})
+    assert ctl.calls == [("move_to", 120, 220), ("click", "left", 1)]
+    assert out.say == "Clicked Equals."
+
+
+def test_smart_click_risky_button_waits_for_approve():
+    from agent.smart_click import Candidate
+
+    ex, ctl, _ = make()
+    ex.clicker = FakeClicker(Candidate("Send", "Button", (0, 0, 20, 20)))
+    out = run(ex, {"action": "click_on", "target": "send"})
+    assert out.approval is not None and ctl.calls == []
+    assert ex.approvals.resolve(out.approval.id, ok=True) == "Clicked Send."
+    assert ("click", "left", 1) in ctl.calls
+
+
+def test_smart_click_not_found_suggests_grid():
+    ex, ctl, _ = make()
+    ex.clicker = FakeClicker(None)
+    out = run(ex, {"action": "click_on", "target": "unicorn"})
+    assert not out.ok and "show grid" in out.say and ctl.calls == []
+
+
+def test_screen_command_tells_the_phone_to_wait():
+    class FakeScreen:
+        def look(self, mode):
+            return f"{mode} done"
+
+    ex, _, _ = make()
+    ex.screen = FakeScreen()
+    early = []
+    msgs = Assistant(ex, notify=early.extend).handle_text("summarize this page")
+    assert early and "Looking at your screen" in early[0]["text"]
+    assert msgs[0]["text"] == "summarize done"
+    early.clear()
+    Assistant(ex, notify=early.extend).handle_text("read the screen")    # fast: no wait message
+    assert early == []

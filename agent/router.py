@@ -10,10 +10,11 @@ import re
 
 from skills.websites import resolve as resolve_site
 
-from .apps import find_app
+from .apps import app_list_text, find_app
 from .commands import (
-    GRID_CELLS, AirQualityCmd, ClickCmd, CloseWindowCmd, Command, GoToCmd, GridClickCmd, GridCmd,
-    HotkeyCmd, KeyCmd, MediaCmd, OpenAppCmd, ScrollCmd, SearchCmd, StopCmd, TypeCmd,
+    GRID_CELLS, UnknownCmd, AirQualityCmd, ClickCmd, CloseWindowCmd, Command, GoToCmd, GridClickCmd, GridCmd,
+    HotkeyCmd, KeyCmd, MediaCmd, OpenAppCmd, ScreenCmd, ScrollCmd, SearchCmd, SmartClickCmd, StopCmd,
+    TypeCmd,
     WeatherCmd, WikiCmd,
 )
 
@@ -41,6 +42,14 @@ _KEY_NAMES = {
 }
 
 _SIMPLE: dict[str, Command] = {}
+
+# Tools that can run commands or change the system are never opened, whatever the AI says.
+_BLOCKED_APPS = re.compile(
+    r"^(?:the |a )?(?:command prompt|cmd|cmd\.exe|command line|terminal|windows terminal|powershell|"
+    r"power shell|bash|shell|registry|registry editor|regedit|task manager|control panel|run box|run dialog)"
+    r"(?: app| window)?$",
+    re.I,
+)
 
 
 def _simple(phrases: str, cmd: Command) -> None:
@@ -90,6 +99,19 @@ _simple("refresh|reload|refresh the page|reload the page|refresh page",
         HotkeyCmd(action="hotkey", combo="refresh"))
 _simple("address bar|go to the address bar|click the address bar|go to address bar|search bar"
         "|go to the search bar", HotkeyCmd(action="hotkey", combo="address_bar"))
+_simple("what's on my screen|whats on my screen|what is on my screen|what's on the screen"
+        "|what is on the screen|what am i looking at|describe the screen|describe my screen"
+        "|what do you see|look at my screen|look at the screen|see my screen|see the screen"
+        "|see what i'm doing|see what im doing|what am i doing|what am i doing right now",
+        ScreenCmd(action="screen", mode="describe"))
+_simple("summarize this page|summarise this page|summarize the page|summarise the page|summarize this"
+        "|summarise this|summarize the screen|summarise the screen|summarize this article"
+        "|give me a summary|what is this page about|what's this page about|tldr",
+        ScreenCmd(action="screen", mode="summarize"))
+_simple("explain this error|explain the error|what does this error mean|what's this error|what is this error"
+        "|why is this failing|fix this error|help me with this error", ScreenCmd(action="screen", mode="explain_error"))
+_simple("read the screen|read this|read this page|read it to me|read the page|read it out|read it aloud",
+        ScreenCmd(action="screen", mode="read"))
 _simple("weather|what's the weather|whats the weather|what is the weather|how's the weather"
         "|hows the weather|weather today|is it going to rain|will it rain|sunset"
         "|when is sunset|what time is sunset", WeatherCmd(action="weather"))
@@ -141,6 +163,12 @@ _GRID_CLICK = re.compile(
 )
 # Only "type ..." types text. "write ..." is left to the AI, because people say
 # "I want to write some code" or "write an email" and mean something else.
+# "click the Sign in button", "right click on Recycle Bin", "press the Submit button"
+_CLICK_ON = re.compile(
+    r"^(?P<kind>double click|double tap|right click|click|tap|press|select|hit|choose)(?: on)? "
+    r"(?P<target>.+?)(?: button| link| tab| icon| option)?$",
+    re.I,
+)
 _TYPE = re.compile(r"^(?:type|type in|type out|enter text)[ :,]+(?P<text>.+)$", re.I | re.S)
 _PRESS = re.compile(r"^(?:press|hit|push)(?: the)? (?P<key>.+?)(?: key| button)?$", re.I)
 _OPEN = re.compile(r"^(?:open|launch|start|run|bring up|go to|visit|navigate to|take me to"
@@ -213,6 +241,8 @@ def fast_path(text: str) -> Command | None:
             return KeyCmd(action="key", key=key)
 
     if m := _OPEN.match(t):
+        if _BLOCKED_APPS.match(m.group("app").strip()):
+            return UnknownCmd(action="unknown", say=f"For safety I can't open that. I can open: {app_list_text()}.")
         app = find_app(m.group("app"))
         if app:
             return OpenAppCmd(action="open_app", app=app)
@@ -220,6 +250,14 @@ def fast_path(text: str) -> Command | None:
         if resolve_site(site):                       # "go to github", "open codechef.com"
             return GoToCmd(action="goto", site=site[:200])
         # not an app or a known website: fall through to search rules / AI
+
+    if m := _CLICK_ON.match(t):
+        target = re.sub(r"^(?:the|a|an) ", "", m.group("target").strip(), flags=re.I).strip()
+        kind = m.group("kind").lower()
+        if target and _number(target) is None and target.lower() not in ("it", "that", "this", "here"):
+            return SmartClickCmd(action="click_on", target=target[:80],
+                                 button="right" if kind == "right click" else "left",
+                                 count=2 if kind.startswith("double") else 1)
 
     if m := _WEATHER.match(low):
         return WeatherCmd(action="weather", place=m.group("place").strip()[:80])

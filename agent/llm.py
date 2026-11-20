@@ -30,13 +30,16 @@ Reply with JSON only. Choose "action" from:
 - click: button "left"/"right"/"middle", count 1 or 2
 - type: text to type into the active window
 - key: one of enter, backspace, delete, tab, esc, space, up, down, left, right, home, end, page_up, page_down
-- media: volume_up, volume_down, mute, play_pause, next, prev
+- media: volume_up, volume_down, mute, play_pause, next, prev (next/previous song or track = these keys)
 - hotkey: app_next, app_prev, task_view, show_desktop, copy, paste, cut, undo, select_all,
   new_tab, next_tab, prev_tab, back, forward, refresh, address_bar (browser)
 - open_app: app is one of {", ".join(APPS)}
 - close_window: close the active window (the user will be asked to approve)
 - grid: show true/false (numbered grid over the screen for clicking)
 - grid_click: cell 1-{GRID_CELLS}, button, count
+- click_on: target = the name of a button, link or tab on screen, button, count
+- screen: mode describe (what's on screen, what am I doing/looking at) / summarize (what a page or article
+  says) / explain_error / read (read the text aloud)
 - weather: place (city) or null for the home city. {weather.DESCRIPTION}
 - air_quality: place or null. {air_quality.DESCRIPTION}
 - wiki: topic. {wikipedia.DESCRIPTION}
@@ -56,6 +59,9 @@ Examples:
 "I want to listen to some lofi" -> {{"action":"search","site":"youtube","query":"lofi music"}}
 "open something to write notes" -> {{"action":"open_app","app":"notepad"}}
 "go back to the previous page" -> {{"action":"hotkey","combo":"back"}}
+"hit the next button" -> {{"action":"click_on","target":"next"}}
+"what is this article about" -> {{"action":"screen","mode":"summarize"}}
+"look at my display and tell me what's there" -> {{"action":"screen","mode":"describe"}}
 "I want to check my emails" -> {{"action":"goto","site":"gmail"}}
 "find the react repository on github" -> {{"action":"search","site":"github","query":"react"}}
 "is it hot outside in Chennai" -> {{"action":"weather","place":"Chennai"}}

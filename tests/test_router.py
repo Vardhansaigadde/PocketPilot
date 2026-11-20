@@ -68,6 +68,14 @@ from agent.router import clean, fast_path
         ("go back", {"action": "hotkey", "combo": "back"}),
         ("refresh the page", {"action": "hotkey", "combo": "refresh"}),
         ("go to the address bar", {"action": "hotkey", "combo": "address_bar"}),
+        ("click the Sign in button", {"action": "click_on", "target": "Sign in", "button": "left", "count": 1}),
+        ("right click on Recycle Bin", {"action": "click_on", "target": "Recycle Bin", "button": "right", "count": 1}),
+        ("press the submit button", {"action": "click_on", "target": "submit", "button": "left", "count": 1}),
+        ("what's on my screen", {"action": "screen", "mode": "describe"}),
+        ("can you see what I'm doing", {"action": "screen", "mode": "describe"}),
+        ("Summarize this page.", {"action": "screen", "mode": "summarize"}),
+        ("explain this error", {"action": "screen", "mode": "explain_error"}),
+        ("read the screen", {"action": "screen", "mode": "read"}),
         ("stop", {"action": "stop"}),
         ("Never mind.", {"action": "stop"}),
     ],
@@ -89,7 +97,6 @@ def test_type_keeps_original_case():
         "",
         "   ",
         "open the thing I used yesterday",
-        "click on the login button",    # smart click is v3
         "reply to Ravi that I'm late",
         "what is this",
         "make it brighter",
@@ -122,3 +129,10 @@ def test_split_steps():
         "open edge", "type github.com", "press enter"]
     assert split_steps("search youtube for rock and roll") == ["search youtube for rock and roll"]
     assert len(split_steps(" then ".join(["scroll down"] * 9))) == 5   # at most 5 steps
+
+
+@pytest.mark.parametrize("said", ["open the command prompt", "open cmd", "launch powershell",
+                                  "open terminal", "start the registry editor", "open task manager"])
+def test_command_tools_are_always_refused(said):
+    cmd = fast_path(said)
+    assert cmd.action == "unknown" and "can't open" in cmd.say

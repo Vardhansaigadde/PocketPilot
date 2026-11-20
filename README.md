@@ -4,9 +4,23 @@
 
 Zero cost: everything is open source and runs on your own laptop. No cloud account needed.
 
-> Status: **v1 (touchpad) and v2 (voice commands) work**, tested on a real phone with the [25-command checklist](docs/v2-commands.md). Next: v3 smart click and screen explainer. See the [roadmap](#roadmap).
+> Status: **v1 (touchpad) and v2 (voice commands) work**, tested on a real phone with the [25-command checklist](docs/v2-commands.md). **v3 (smart click + screen explainer) is built** and being tested with the [v3 checklist](docs/v3-tests.md). See the [roadmap](#roadmap).
 
 <!-- Add a demo GIF here once recorded: docs/demo-v1.gif -->
+
+## Smart click and screen explainer (v3)
+
+| Say | What happens |
+| --- | --- |
+| "click the Sign in button", "click Downloads", "right click on Documents", "double click My Pictures" | Finds that button, link or tab by its name and clicks it |
+| "what's on my screen?" | Describes the screen (vision model, about 40 s) |
+| "summarize this page" | 2-3 sentence summary of the page you're on (about 30-40 s) |
+| "explain this error" | What the error on screen means and how to fix it (a few seconds) |
+| "read the screen" | Reads the visible text out loud (instant) |
+
+How smart click finds things: first Windows **UI Automation** (the same list of buttons screen readers use, about 0.2 s), then Windows' built-in **OCR** (reads the text on screen, about 0.3 s) if the app doesn't share its buttons. If neither finds it, it says so and you can use the numbered grid. Buttons like Send, Delete, Pay or Sign in always wait for **Approve** on the phone.
+
+The screen explainer reads the window's text with Windows OCR and asks the local text model; "what's on my screen" sends a small screenshot to the local vision model (`qwen3.5:4b`, `ollama pull qwen3.5:4b`). Screenshots stay in memory: never saved, never sent anywhere.
 
 ## Voice commands (v2)
 
@@ -120,7 +134,7 @@ Voice: phone mic / text box / "Hey Jarvis" ─► Whisper (speech → text, on t
 - **server/pairing.py**: a random token in the QR code; connections without it are refused.
 - **server/certs.py**: makes a small local certificate authority and an HTTPS certificate for the laptop's Wi-Fi address, so the phone can use its mic.
 - **server/input_control.py**: turns messages into real mouse and keyboard actions. Released safely if the phone disconnects mid-drag.
-- **agent/**: the voice assistant. `commands.py` (every allowed action), `router.py` (instant phrases), `llm.py` (Ollama), `stt.py` (Whisper), `executor.py` (does the action), `approvals.py`, `grid.py`, `laptop_voice.py` (wake word), `apps.py` (the only apps it can open).
+- **agent/**: the voice assistant. `commands.py` (every allowed action), `router.py` (instant phrases), `llm.py` (Ollama), `stt.py` (Whisper), `executor.py` (does the action), `approvals.py`, `grid.py`, `laptop_voice.py` (wake word), `apps.py` (the only apps it can open), `smart_click.py` (UI Automation + OCR finder), `screen.py` (capture + Windows OCR), `explainer.py` (summaries, errors, descriptions).
 - **skills/**: weather, air quality, Wikipedia and web search. Free, no API keys.
 
 ## Safety
@@ -157,7 +171,7 @@ It prints which command the model picks for each phrase, how long it took, and t
 | --- | --- |
 | **v1 Touchpad** ✅ | Phone touchpad, keyboard, media keys, QR pairing |
 | **v2 Voice commands** ✅ | Phone mic + "Hey Jarvis" on the laptop ("Hey Pilot" later); open apps, weather, Edge/YouTube search, grid clicking |
-| v3 Smart click + screen explainer | "Click the Login button", "summarize this page" |
+| v3 Smart click + screen explainer 🧪 | "Click the Login button", "summarize this page", "explain this error" |
 | v4 Task agent | Multi-step tasks, WhatsApp replies with Approve, memory of what you did |
 | v5 Telugu + parent mode | Telugu voice commands and replies, simple screen for parents, Android app |
 | v6 Macros + MCP | "Watch me once" skills, MCP server for other AI apps |

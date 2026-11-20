@@ -85,6 +85,8 @@ def main() -> None:
     controller = PynputController()
     assistant = None if args.no_voice else build_assistant(controller, args)
     app = create_app(token=token, controller=controller, ca_cert=ca_cert, assistant=assistant)
+    if assistant is not None:
+        assistant.notify = app.state.phones.broadcast_from_thread   # "Looking at your screen…"
 
     if assistant is not None and not args.no_wake:
         try:
@@ -105,8 +107,10 @@ def build_assistant(controller, args):  # noqa: ANN001, ANN201 - kept simple for
         from agent.assistant import Assistant
         from agent.config import load_config
         from agent.executor import Executor
+        from agent.explainer import ScreenExplainer
         from agent.grid import TkGrid
         from agent.llm import OllamaPlanner
+        from agent.smart_click import SmartClicker
         from agent.stt import WhisperTranscriber
         from skills import WebSkills, make_client
         from skills.web_search import open_in_edge
@@ -121,8 +125,11 @@ def build_assistant(controller, args):  # noqa: ANN001, ANN201 - kept simple for
     skills = WebSkills(make_client(contact=cfg.contact), open_in_edge, home_city=cfg.home_city,
                        open_app_link=start_app, app_available=is_available,
                        amazon_domain=cfg.amazon_domain)
-    executor = Executor(controller, Approvals(), skills=skills, grid=TkGrid())
     planner = OllamaPlanner(args.model or cfg.model, cfg.ollama_url)
+    explainer = ScreenExplainer(planner.model, cfg.vision_model, cfg.ollama_url,
+                                after=planner.warm_up)   # get the command model ready again afterwards
+    executor = Executor(controller, Approvals(), skills=skills, grid=TkGrid(),
+                        clicker=SmartClicker(), screen=explainer)
     planner.warm_up()
     transcriber = WhisperTranscriber(cfg.whisper_model)
     transcriber.preload()

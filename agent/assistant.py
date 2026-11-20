@@ -12,7 +12,7 @@ import threading
 import time
 from typing import Any, Callable, Protocol
 
-from .commands import Command, GoToCmd, OpenAppCmd, SearchCmd, UnknownCmd
+from .commands import Command, GoToCmd, OpenAppCmd, ScreenCmd, SearchCmd, UnknownCmd
 from .executor import Executor, Outcome
 from .router import fast_path, split_steps
 
@@ -57,11 +57,13 @@ class Assistant:
         planner: Planner | None = None,
         transcriber: Transcriber | None = None,
         sleep: Callable[[float], None] = time.sleep,
+        notify: Callable[[list[dict]], None] | None = None,
     ) -> None:
         self.executor = executor
         self.planner = planner
         self.transcriber = transcriber
         self.sleep = sleep
+        self.notify = notify   # send a message to the phone straight away (slow commands)
         self._busy = threading.Lock()
 
     # -- entry points (called from a worker thread) ---------------------------
@@ -115,7 +117,14 @@ class Assistant:
         except PlannerError as exc:
             return [reply(str(exc), ok=False)]
         log.info("%r -> %r", text, cmd)
+        self._say_wait(cmd)
         return _outcome_messages(self.executor.run(cmd))
+
+    def _say_wait(self, cmd: Command) -> None:
+        """Looking at the screen takes 20-40 s on a CPU: tell the user right away."""
+        if isinstance(cmd, ScreenCmd) and cmd.mode != "read" and self.notify is not None:
+            secs = "40" if cmd.mode == "describe" else "30"
+            self.notify([reply(f"Looking at your screen… this takes about {secs} seconds.")])
 
     def _handle_steps(self, steps: list[str]) -> list[dict]:
         """Run "open edge then type github.com then press enter" one step at a time.
@@ -129,6 +138,7 @@ class Assistant:
             except PlannerError as exc:
                 return [reply(f"Step {i} ({step}): {exc}", ok=False)]
             log.info("step %d %r -> %r", i, step, cmd)
+            self._say_wait(cmd)
             out = self.executor.run(cmd)
             if not out.ok:
                 done = " ".join(said)

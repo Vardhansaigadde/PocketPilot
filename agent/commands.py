@@ -78,6 +78,20 @@ class GridClickCmd(_Cmd):
     count: int = Field(default=1, ge=1, le=2)
 
 
+class SmartClickCmd(_Cmd):
+    """Click a button/link by its name ("click the Login button")."""
+    action: Literal["click_on"]
+    target: str = Field(min_length=1, max_length=80)
+    button: Literal["left", "right"] = "left"
+    count: int = Field(default=1, ge=1, le=2)
+
+
+class ScreenCmd(_Cmd):
+    """Look at the screen: describe it, summarize the page, explain an error, or read it aloud."""
+    action: Literal["screen"]
+    mode: Literal["describe", "summarize", "explain_error", "read"] = "describe"
+
+
 class WeatherCmd(_Cmd):
     action: Literal["weather"]
     place: str | None = Field(default=None, max_length=80)
@@ -118,7 +132,7 @@ class UnknownCmd(_Cmd):
 Command = Annotated[
     Union[
         ScrollCmd, ClickCmd, TypeCmd, KeyCmd, MediaCmd, HotkeyCmd, OpenAppCmd,
-        CloseWindowCmd, GridCmd, GridClickCmd, WeatherCmd, AirQualityCmd, WikiCmd,
+        CloseWindowCmd, GridCmd, GridClickCmd, SmartClickCmd, ScreenCmd, WeatherCmd, AirQualityCmd, WikiCmd,
         GoToCmd, SearchCmd, StopCmd, UnknownCmd,
     ],
     Field(discriminator="action"),

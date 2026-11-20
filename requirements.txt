@@ -10,3 +10,9 @@ openwakeword>=0.6
 sounddevice>=0.5
 numpy>=1.26
 pyttsx3>=2.90
+# v3 smart click + screen reading
+pywinauto>=0.6.8
+winrt-Windows.Media.Ocr>=3.0
+winrt-Windows.Graphics.Imaging>=3.0
+winrt-Windows.Storage.Streams>=3.0
+winrt-Windows.Foundation>=3.0

@@ -10,14 +10,16 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
-from typing import Callable, Protocol
+from typing import Any, Callable, Protocol
 
 from server.input_control import Controller
 
 from . import apps
 from .approvals import Approvals, Pending
+from .smart_click import is_risky
 from .commands import (
     GRID_CELLS, AirQualityCmd, ClickCmd, CloseWindowCmd, Command, GoToCmd, GridClickCmd, GridCmd,
+    ScreenCmd, SmartClickCmd,
     HotkeyCmd, KeyCmd, MediaCmd, OpenAppCmd, ScrollCmd, SearchCmd, StopCmd, TypeCmd,
     UnknownCmd, WeatherCmd, WikiCmd,
 )
@@ -33,6 +35,14 @@ class Skills(Protocol):
     def wiki(self, topic: str) -> str: ...
     def search(self, site: str, query: str) -> str: ...
     def open_site(self, site: str) -> str: ...
+
+
+class Clicker(Protocol):
+    def find(self, target: str) -> Any: ...   # a smart_click.Candidate or None
+
+
+class Screen(Protocol):
+    def look(self, mode: str) -> str: ...      # describe / summarize / explain_error / read
 
 
 class Grid(Protocol):
@@ -76,6 +86,8 @@ class Executor:
         grid: Grid | None = None,
         launcher: Callable[[str], None] = start_app,
         app_available: Callable[[str], bool] = apps.is_available,
+        clicker: Clicker | None = None,
+        screen: Screen | None = None,
     ) -> None:
         self.ctl = controller
         self.approvals = approvals
@@ -83,6 +95,8 @@ class Executor:
         self.grid = grid
         self.launch = launcher
         self.app_available = app_available
+        self.clicker = clicker
+        self.screen = screen
 
     def run(self, cmd: Command) -> Outcome:
         try:
@@ -142,6 +156,12 @@ class Executor:
             self.ctl.move_to(x, y)
             self.ctl.click(cmd.button, cmd.count)
             return Outcome(f"Clicked {cmd.cell}.")
+        if isinstance(cmd, SmartClickCmd):
+            return self._smart_click(cmd)
+        if isinstance(cmd, ScreenCmd):
+            if self.screen is None:
+                return Outcome("Screen reading isn't available.", ok=False)
+            return Outcome(self.screen.look(cmd.mode))
         if isinstance(cmd, (WeatherCmd, AirQualityCmd, WikiCmd, SearchCmd, GoToCmd)):
             if self.skills is None:
                 return Outcome("That skill isn't available.", ok=False)
@@ -157,6 +177,25 @@ class Executor:
         if isinstance(cmd, UnknownCmd):
             return Outcome(cmd.say, ok=False)
         return Outcome("Sorry, I can't do that yet.", ok=False)  # pragma: no cover
+
+    def _smart_click(self, cmd: SmartClickCmd) -> Outcome:
+        if self.clicker is None:
+            return Outcome("Smart click isn't available. Say show grid instead.", ok=False)
+        hit = self.clicker.find(cmd.target)
+        if hit is None:
+            return Outcome(f"I couldn't find {cmd.target} on the screen. Say show grid to pick it by number.",
+                           ok=False)
+        name = hit.name if len(hit.name) <= 40 else hit.name[:37] + "..."
+
+        def click() -> str:
+            self.ctl.move_to(*hit.center)
+            self.ctl.click(cmd.button, cmd.count)
+            return f"Clicked {name}."
+
+        if is_risky(hit.name) or is_risky(cmd.target):
+            pending = self.approvals.request(f'Click "{name}"?', click)
+            return Outcome(f"Approve on your phone to click {name}.", approval=pending)
+        return Outcome(click())
 
     def stop(self) -> Outcome:
         """Kill switch: cancel approvals, hide the grid, let go of the mouse."""

@@ -20,7 +20,7 @@ from .memory import Memory, describe
 from .smart_click import is_risky
 from .commands import (
     GRID_CELLS, AirQualityCmd, ClickCmd, CricketCmd, CurrencyCmd, DefineCmd, NewsCmd, CloseWindowCmd, Command, GoToCmd, GridClickCmd, GridCmd,
-    ForgetCmd, GridZoomCmd, MemoryCmd, TaskCmd, WhatsAppCmd,
+    ForgetCmd, GridZoomCmd, KeepAwakeCmd, MemoryCmd, TaskCmd, WakeScreenCmd, WhatsAppCmd,
     ScreenCmd, SmartClickCmd,
     HotkeyCmd, KeyCmd, MediaCmd, OpenAppCmd, ScrollCmd, SearchCmd, StopCmd, TypeCmd,
     UnknownCmd, WeatherCmd, WikiCmd,
@@ -107,6 +107,8 @@ class Executor:
         memory: Memory | None = None,
         summarize: Callable[[str], str] | None = None,
         whatsapp: Messenger | None = None,
+        awake: Any = None,
+        locked: Callable[[], bool] = lambda: False,
     ) -> None:
         self.ctl = controller
         self.approvals = approvals
@@ -119,6 +121,8 @@ class Executor:
         self.memory = memory
         self.summarize = summarize   # text model, for long histories
         self.whatsapp = whatsapp
+        self.awake = awake       # keep_awake.KeepAwake
+        self.locked = locked     # is the Windows lock screen showing?
 
     def run(self, cmd: Command) -> Outcome:
         try:
@@ -170,6 +174,15 @@ class Executor:
             return Outcome("Multi-step tasks aren't available.", ok=False)
         if isinstance(cmd, WhatsAppCmd):
             return self._whatsapp(cmd)
+        if isinstance(cmd, WakeScreenCmd):
+            self.ctl.wake_screen()
+            if self.locked():
+                return Outcome("Screen is on. It's locked: unlock it with your face, fingerprint or PIN.")
+            return Outcome("Screen is on.")
+        if isinstance(cmd, KeepAwakeCmd):
+            if self.awake is None:
+                return Outcome("Keep-awake isn't available.", ok=False)
+            return Outcome(self.awake.set_mode(cmd.mode))
         if isinstance(cmd, (MemoryCmd, ForgetCmd)):
             return self._memory(cmd)
         if isinstance(cmd, ScreenCmd):

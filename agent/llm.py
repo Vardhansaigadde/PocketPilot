@@ -51,6 +51,8 @@ Reply with JSON only. Choose "action" from:
 - whatsapp: contact, kind message/voice_call/video_call/open, text (for messages). Sending and calling
   always ask the user to approve.
 - memory: period today/yesterday/last_hour/this_week (what the user did with PocketPilot)
+- wake_screen: turn the laptop's screen back on ("open my laptop")
+- keep_awake: mode always/charging/off (stop the laptop sleeping while PocketPilot runs)
 - goto: site = a website name or address. {websites.DESCRIPTION} Known names: {", ".join(sorted(websites.SITES))}
 - search: site bing/google/youtube/amazon/github/chatgpt/spotify, query. {web_search.DESCRIPTION}
 - stop: stop everything

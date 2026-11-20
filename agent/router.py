@@ -15,7 +15,7 @@ from skills.websites import resolve as resolve_site
 from .apps import app_list_text, find_app
 from .commands import (
     GRID_CELLS, CricketCmd, CurrencyCmd, DefineCmd, NewsCmd, UnknownCmd, AirQualityCmd, ClickCmd, CloseWindowCmd, Command, GoToCmd, GridClickCmd, GridCmd,
-    ForgetCmd, GridZoomCmd, HotkeyCmd, KeyCmd, MemoryCmd, MediaCmd, OpenAppCmd, ScreenCmd, ScrollCmd, SearchCmd, SmartClickCmd, StopCmd,
+    ForgetCmd, GridZoomCmd, HotkeyCmd, KeepAwakeCmd, KeyCmd, MemoryCmd, WakeScreenCmd, MediaCmd, OpenAppCmd, ScreenCmd, ScrollCmd, SearchCmd, SmartClickCmd, StopCmd,
     TypeCmd, WhatsAppCmd,
     WeatherCmd, WikiCmd,
 )
@@ -121,6 +121,15 @@ _simple("clear my history|delete my history|clear history|forget my history|forg
         "|erase my history", ForgetCmd(action="forget_history"))
 _simple("cricket|cricket score|cricket scores|live score|live scores|live cricket score|what's the score"
         "|whats the score|what is the score|score of the match|match score", CricketCmd(action="cricket"))
+_simple("wake up|open my laptop|open the laptop|open laptop|wake my laptop|wake the laptop|wake up laptop"
+        "|wake up my laptop|wake up the laptop|turn on the screen|turn on my screen|turn the screen on|screen on"
+        "|wake the screen|wake up the screen|switch on the screen", WakeScreenCmd(action="wake_screen"))
+_simple("keep my laptop awake|keep the laptop awake|keep awake|stay awake|don't sleep|dont sleep"
+        "|don't let it sleep|dont let it sleep|don't let my laptop sleep", KeepAwakeCmd(action="keep_awake", mode="always"))
+_simple("let the laptop sleep|let my laptop sleep|allow sleep|you can sleep|stop keeping it awake"
+        "|stop keeping my laptop awake|let it sleep", KeepAwakeCmd(action="keep_awake", mode="off"))
+_simple("keep awake while charging|only keep awake while charging|keep it awake while charging",
+        KeepAwakeCmd(action="keep_awake", mode="charging"))
 _simple("weather|what's the weather|whats the weather|what is the weather|how's the weather"
         "|hows the weather|weather today|is it going to rain|will it rain|sunset"
         "|when is sunset|what time is sunset", WeatherCmd(action="weather"))

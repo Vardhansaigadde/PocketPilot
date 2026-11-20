@@ -106,6 +106,17 @@ class WhatsAppCmd(_Cmd):
     text: str | None = Field(default=None, max_length=500)
 
 
+class WakeScreenCmd(_Cmd):
+    """"Open my laptop" / "wake up": turn the screen back on."""
+    action: Literal["wake_screen"]
+
+
+class KeepAwakeCmd(_Cmd):
+    """Keep the laptop from sleeping while PocketPilot runs (charging = only when plugged in)."""
+    action: Literal["keep_awake"]
+    mode: Literal["charging", "always", "off"] = "always"
+
+
 class MemoryCmd(_Cmd):
     """"What was I working on yesterday?" -> answer from the local history log."""
     action: Literal["memory"]
@@ -184,7 +195,7 @@ class UnknownCmd(_Cmd):
 Command = Annotated[
     Union[
         ScrollCmd, ClickCmd, TypeCmd, KeyCmd, MediaCmd, HotkeyCmd, OpenAppCmd,
-        CloseWindowCmd, GridCmd, GridClickCmd, GridZoomCmd, SmartClickCmd, ScreenCmd, WhatsAppCmd, MemoryCmd, ForgetCmd, WeatherCmd, AirQualityCmd, WikiCmd,
+        CloseWindowCmd, GridCmd, GridClickCmd, GridZoomCmd, SmartClickCmd, ScreenCmd, WhatsAppCmd, WakeScreenCmd, KeepAwakeCmd, MemoryCmd, ForgetCmd, WeatherCmd, AirQualityCmd, WikiCmd,
         CurrencyCmd, DefineCmd, NewsCmd, CricketCmd, GoToCmd, SearchCmd, TaskCmd, StopCmd, UnknownCmd,
     ],
     Field(discriminator="action"),

@@ -112,6 +112,7 @@ def build_assistant(controller, args):  # noqa: ANN001, ANN201 - kept simple for
         from agent.explainer import ScreenExplainer
         from agent.grid import TkGrid
         from agent.llm import OllamaPlanner
+        from agent.keep_awake import KeepAwake, screen_locked
         from agent.memory import Memory
         from agent.whatsapp import WhatsApp
         from agent.smart_click import SmartClicker
@@ -134,12 +135,15 @@ def build_assistant(controller, args):  # noqa: ANN001, ANN201 - kept simple for
     planner = OllamaPlanner(args.model or cfg.model, cfg.ollama_url)
     explainer = ScreenExplainer(planner.model, cfg.vision_model, cfg.ollama_url,
                                 after=planner.warm_up)   # get the command model ready again afterwards
+    awake = KeepAwake(cfg.keep_awake)       # no sleep while charging, so the phone can always connect
+    awake.start()
     memory = Memory(DATA / "history.db")   # local only; "clear my history" deletes it
     clicker = SmartClicker()
     executor = Executor(controller, Approvals(), skills=skills, grid=TkGrid(),
                         clicker=clicker, screen=explainer,
                         memory=memory, summarize=explainer.summarize_history,
-                        whatsapp=WhatsApp(controller, contacts=list(cfg.contacts)))
+                        whatsapp=WhatsApp(controller, contacts=list(cfg.contacts)),
+                        awake=awake, locked=screen_locked)
     planner.warm_up()
     transcriber = WhisperTranscriber(cfg.whisper_model, names=cfg.contacts)
     transcriber.preload()

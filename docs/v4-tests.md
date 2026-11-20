@@ -45,6 +45,14 @@ Start with `python run.py` and wait about a minute. Say each command with the ph
 | 4 | news / news about ISRO | Without a key: how to get one. With `POCKETPILOT_GNEWS_KEY`: 3 headlines | ☐ |
 | 5 | cricket score | Without a key: how to get one. With `POCKETPILOT_CRICKET_KEY`: live scores | ☐ |
 
+## Laptop awake
+
+| # | Say | Expected | ✓ |
+|---|-----|----------|:-:|
+| 1 | (plugged in, wait until the screen turns off) open my laptop | Screen comes back on; the phone stayed connected | ☐ |
+| 2 | keep my laptop awake | Stays awake on battery too while PocketPilot runs | ☐ |
+| 3 | let my laptop sleep | Normal sleep again | ☐ |
+
 ## Safety checks
 - [ ] Smart click on a "Close", "Exit", "Leave" or "End call" button asks Approve.
 - [ ] Nothing is ever sent or dialled without Approve.

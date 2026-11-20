@@ -29,6 +29,7 @@ class Controller(Protocol):
     def release_all(self) -> None: ...
     # Used only by the voice assistant (never reachable from a phone message):
     def move_to(self, x: int, y: int) -> None: ...
+    def wake_screen(self) -> None: ...
     def close_window(self) -> None: ...
 
 
@@ -157,6 +158,17 @@ class PynputController:
 
     def move_to(self, x: int, y: int) -> None:
         self._mouse.position = (int(x), int(y))
+
+    def wake_screen(self) -> None:
+        """Turn the display back on: a tiny mouse nudge, plus telling Windows the display is needed."""
+        import ctypes
+
+        self._mouse.move(1, 0)
+        self._mouse.move(-1, 0)
+        try:
+            ctypes.windll.kernel32.SetThreadExecutionState(ctypes.c_uint(0x00000002))  # ES_DISPLAY_REQUIRED
+        except (AttributeError, OSError):  # pragma: no cover - not Windows
+            pass
 
     def close_window(self) -> None:
         """Alt+F4. Only the assistant calls this, and only after Approve on the phone."""

@@ -20,6 +20,10 @@ Zero cost: everything is open source and runs on your own laptop. No cloud accou
 | "define serendipity", "what does ephemeral mean" | Dictionary meaning + example (no key) |
 | "news", "news about ISRO" | Top headlines (free key from gnews.io in `.env`) |
 | "cricket score" | Live scores (free key from cricketdata.org in `.env`) |
+| "open my laptop", "wake up" | Turns the laptop screen back on (if it's locked, unlock with face, fingerprint or PIN) |
+| "keep my laptop awake", "let my laptop sleep" | While PocketPilot runs it stops the laptop sleeping **when plugged in** (default), always, or never |
+
+**Why keep-awake instead of waking from sleep?** While the laptop sleeps Windows pauses PocketPilot too, and a phone browser can't send Wake-on-LAN packets. So by default PocketPilot asks Windows not to sleep while it's charging (the screen still turns off), and "open my laptop" turns the screen back on. Nothing in Windows' settings is changed, and the request ends when PocketPilot stops. `POCKETPILOT_KEEP_AWAKE=always|charging|off` in `.env`.
 
 WhatsApp is driven through its own button names (UI Automation), not by guessing where to click. Put the names you message most in `.env` as `POCKETPILOT_CONTACTS=Amma, Nanna, Kidduuu`: speech-to-text then hears them right, and close mishearings ("Amah") snap to the real name. Common Telugu family names (Amma, Nanna, Akka, Anna...) are known out of the box. Two chats with the same name ("Amma ❤️" and "Amma")? It never guesses: it asks you to say **"amma heart"** or **"just amma"** (common emoji have spoken names: heart, ribbon, star, flower, crown...), and the Approve card always shows the exact contact, emoji included. To make plain "amma" mean the ❤️ one, put `POCKETPILOT_CONTACTS=Amma ❤️` in `.env`. Before sending or calling it checks that the chat header really is the person you named, and again right before it presses Enter or the call button.
 

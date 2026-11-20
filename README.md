@@ -18,7 +18,7 @@ Zero cost: everything is open source and runs on your own laptop. No cloud accou
 | "explain this error" | What the error on screen means and how to fix it (a few seconds) |
 | "read the screen" | Reads the visible text out loud (instant) |
 
-How smart click finds things: first Windows **UI Automation** (the same list of buttons screen readers use, about 0.2 s), then Windows' built-in **OCR** (reads the text on screen, about 0.3 s) if the app doesn't share its buttons. If neither finds it, it says so and you can use the numbered grid. Buttons like Send, Delete, Pay or Sign in always wait for **Approve** on the phone.
+How smart click finds things: first Windows **UI Automation** (the same list of buttons screen readers use, about 0.2 s), then Windows' built-in **OCR** (reads the text on screen, about 0.3 s) if the app doesn't share its buttons. If neither finds it, it says so and you can use the numbered grid. Names are matched the way speech-to-text hears them ("kidd u" finds the chat "Kidduuu", "log in" finds "Login"), but never across opposite words ("show" never clicks "Hide"); a close match is reported as "(closest match)". Very large windows, like a long WhatsApp chat, switch to OCR after 2 seconds. Buttons like Send, Delete, Pay or Sign in always wait for **Approve** on the phone.
 
 The screen explainer reads the window's text with Windows OCR and asks the local text model; "what's on my screen" sends a small screenshot to the local vision model (`qwen3.5:4b`, `ollama pull qwen3.5:4b`). Screenshots stay in memory: never saved, never sent anywhere.
 

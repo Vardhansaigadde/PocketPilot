@@ -201,11 +201,12 @@ class Executor:
             return Outcome(f"I couldn't find {cmd.target} on the screen. Say show grid to pick it by number.",
                            ok=False)
         name = hit.name if len(hit.name) <= 40 else hit.name[:37] + "..."
+        closest = " (closest match)" if getattr(hit, "score", 1.0) < 0.95 else ""
 
         def click() -> str:
             self.ctl.move_to(*hit.center)
             self.ctl.click(cmd.button, cmd.count)
-            return f"Clicked {name}."
+            return f"Clicked {name}{closest}."
 
         if is_risky(hit.name) or is_risky(cmd.target):
             pending = self.approvals.request(f'Click "{name}"?', click)

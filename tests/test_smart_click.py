@@ -94,3 +94,62 @@ def test_clicker_survives_broken_sources():
     def boom():
         raise RuntimeError("no UI Automation")
     assert SmartClicker(uia=boom, ocr_words=boom).find("anything") is None
+
+
+# ---- spelling from speech-to-text ("kidd u" for "Kidduuu") --------------------------------
+
+@pytest.mark.parametrize("said", ["kidd u", "kiddu", "kidduuu", "Kidduuu"])
+def test_names_survive_speech_to_text_spelling(said):
+    assert score(said, "Kidduuu") >= 0.9
+
+
+@pytest.mark.parametrize("target, name", [
+    ("show sidebar", "Hide sidebar"), ("open file", "Close file"), ("turn on", "Turn off"),
+    ("enable wifi", "Disable wifi"), ("next", "Previous"), ("accept", "Reject all"),
+])
+def test_opposites_never_match(target, name):
+    assert score(target, name) == 0.0
+
+
+def test_chat_row_beats_the_header_label():
+    cands = [c("Kidduuu", "Text", (900, 10, 980, 30)),                        # chat header
+             c("Kidduuu 🎀 Yesterday Ippude hac", "DataItem", (0, 200, 400, 260)),  # chat list row
+             c("Type a message to Kidduuu🎀", "Edit", (500, 900, 1500, 940))]
+    for said in ("kidd u", "kidduuu"):
+        hit = best_match(said, cands)
+        assert hit.kind == "DataItem", said
+
+
+def test_close_matches_report_their_score():
+    hit = best_match("kidd u", [c("Kidduuu 🎀 Yesterday", "DataItem")])
+    assert 0.6 <= hit.score < 0.95
+    assert best_match("Settings", [c("Settings")]).score == 1.0
+
+
+def test_ocr_words_with_speech_spelling():
+    words = [TextBox("Kidduuu", 40, 300, 70, 18), TextBox("Yesterday", 300, 300, 80, 18)]
+    hit = best_match("kidd u", ocr_candidates(words))
+    assert hit.name.startswith("Kidduuu")
+
+
+# ---- time limit for huge windows --------------------------------------------------------------
+
+def test_slow_ui_automation_falls_back_to_ocr_and_is_remembered():
+    import time
+
+    calls = []
+
+    def slow_uia():
+        calls.append(1)
+        time.sleep(0.5)
+        return [c("Kidduuu")]
+
+    now = [100.0]
+    finder = SmartClicker(uia=slow_uia, ocr_words=lambda: [TextBox("Kidduuu", 40, 300, 70, 18)],
+                          window_id=lambda: 7, budget_s=0.05, clock=lambda: now[0])
+    assert finder.find("kidd u").kind == "OCR text"
+    assert finder.find("kidd u").kind == "OCR text"
+    assert len(calls) == 1                     # second time: straight to OCR
+    now[0] += 500                              # much later: tries UI Automation again
+    finder.find("kidd u")
+    assert len(calls) == 2

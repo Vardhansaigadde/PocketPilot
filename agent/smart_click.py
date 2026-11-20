@@ -15,20 +15,25 @@ from __future__ import annotations
 import ctypes
 import logging
 import re
+import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from difflib import SequenceMatcher
 from typing import Callable, Iterable
 
 log = logging.getLogger("pocketpilot.smart_click")
 
+# Control kinds we can click, and how much we trust a match on each kind
+# (a list row beats a plain text label with the same name).
 CLICKABLE = {
     "Button": 1.0, "Hyperlink": 1.0, "MenuItem": 1.0, "TabItem": 1.0, "SplitButton": 1.0,
-    "ListItem": 0.95, "TreeItem": 0.95, "CheckBox": 0.95, "RadioButton": 0.95,
-    "ComboBox": 0.9, "Edit": 0.9, "DataItem": 0.9, "Text": 0.85, "Image": 0.8,
+    "ListItem": 1.0, "TreeItem": 1.0, "DataItem": 1.0, "CheckBox": 0.97, "RadioButton": 0.97,
+    "ComboBox": 0.95, "Edit": 0.95, "OCR text": 0.95, "Text": 0.9, "Image": 0.85,
 }
 MIN_SCORE = 0.6
 WAKE_BELOW = 10          # fewer named controls than this on the first pass -> ask again
+UIA_BUDGET_S = 2.0       # windows slower than this (huge WhatsApp chats) -> use OCR instead
+SLOW_MEMORY_S = 120.0    # remember a slow window for this long
 
 # Words in a button name that mean "ask on the phone first".
 RISKY = re.compile(
@@ -38,7 +43,16 @@ RISKY = re.compile(
     re.I,
 )
 
-_DROP = re.compile(r"\b(the|a|an|button|link|tab|icon|option|menu item|on|please)\b", re.I)
+_DROP = re.compile(r"\b(the|a|an|button|link|tab|icon|option|menu item|please)\b", re.I)
+
+# Never treat these as "close enough" to each other.
+_OPPOSITES = [("show", "hide"), ("open", "close"), ("on", "off"), ("enable", "disable"),
+              ("start", "stop"), ("add", "remove"), ("next", "previous"), ("up", "down"),
+              ("in", "out"), ("lock", "unlock"), ("mute", "unmute"), ("yes", "no"),
+              ("accept", "reject"), ("accept", "decline"), ("allow", "block"), ("allow", "deny"),
+              ("increase", "decrease"), ("expand", "collapse"), ("maximize", "minimize"),
+              ("follow", "unfollow"), ("like", "unlike"), ("pin", "unpin"),
+              ("subscribe", "unsubscribe"), ("before", "after"), ("first", "last")]
 
 
 @dataclass(frozen=True)
@@ -46,6 +60,7 @@ class Candidate:
     name: str
     kind: str                         # "Button", "Hyperlink", ... or "OCR text"
     rect: tuple[int, int, int, int]   # left, top, right, bottom (screen pixels)
+    score: float = 1.0                # how well it matched what the user said (set by best_match)
 
     @property
     def center(self) -> tuple[int, int]:
@@ -59,48 +74,78 @@ def normalize(text: str) -> str:
 
 
 def clean_target(target: str) -> str:
-    """'the Sign in button' -> 'sign in'."""
-    return " ".join(_DROP.sub(" ", normalize(target)).split()) or normalize(target)
+    """'on the Sign in button' -> 'sign in' ("on" is only dropped at the start: "turn on" stays)."""
+    t = re.sub(r"^on\s+", "", normalize(target))
+    return " ".join(_DROP.sub(" ", t).split()) or normalize(target)
+
+
+def _squash(s: str) -> str:
+    return re.sub(r"[\s._-]", "", s)
+
+
+def _collapse(s: str) -> str:
+    """'kidduuu' -> 'kidu': speech-to-text often doubles or drops repeated letters."""
+    return re.sub(r"(.)\1+", r"\1", s)
+
+
+def _opposed(t: str, n: str) -> bool:
+    tw, nw = set(t.split()), set(n.split())
+    return any((x in tw and y in nw) or (y in tw and x in nw) for x, y in _OPPOSITES)
+
+
+def _core(t: str, n: str) -> float:
+    if n == t:
+        return 1.0
+    if _squash(n) == _squash(t):                 # "log in" / "login"
+        return 0.95
+    a, b = _collapse(_squash(t)), _collapse(_squash(n))
+    if a == b:                                   # "kidd u" / "Kidduuu"
+        return 0.92
+    if len(t) >= 3 and n.startswith(t + " "):
+        return 0.9
+    if len(a) >= 4 and b.startswith(a):          # "kidd" / "Kidduuu"
+        return 0.85
+    if re.search(rf"(?<!\w){re.escape(t)}(?!\w)", n):
+        return 0.8 if len(t) >= 3 else 0.6
+    if a and b and a[0] == b[0]:                 # close spelling, same first sound
+        ratio = SequenceMatcher(None, a, b).ratio()
+        if ratio >= 0.8:
+            return 0.6 + (ratio - 0.8) * 1.5     # 0.6 .. 0.9
+    return 0.0
 
 
 def score(target: str, name: str) -> float:
     """How well a control's name matches what the user said (0..1).
 
-    Strict on purpose: "show sidebar" must not match "Hide sidebar". Only small
-    speech-to-text differences ("log in" / "login", "sign-in" / "sign in") are forgiven.
+    Forgiving about speech-to-text spelling ("kidd u" finds "Kidduuu", "log in" finds
+    "Login") but never across opposite words ("show sidebar" never finds "Hide sidebar").
+    Long labels such as a chat row "Kidduuu 🎀 Yesterday ..." are matched by their first words.
     """
     t, n = clean_target(target), normalize(name)
-    if not t or not n:
+    if not t or not n or _opposed(normalize(target), n):
         return 0.0
-    if n == t:
-        return 1.0
-    squash = lambda s: re.sub(r"[\s.-]", "", s)  # noqa: E731
-    if squash(n) == squash(t):
-        return 0.95
-    if len(t) >= 3 and n.startswith(t + " "):
-        return 0.9
-    if re.search(rf"(?<!\w){re.escape(t)}(?!\w)", n):
-        return 0.8 if len(t) >= 3 else 0.6
-    ratio = SequenceMatcher(None, t, n).ratio()
-    return ratio * 0.8 if ratio >= 0.9 else 0.0
+    best = _core(t, n)
+    words = n.split()
+    for k in range(1, min(len(words), len(t.split()) + 2) + 1):
+        best = max(best, _core(t, " ".join(words[:k])) * 0.98)
+    return best
 
 
 def best_match(target: str, candidates: Iterable[Candidate]) -> Candidate | None:
-    """The best-matching candidate, or None if nothing is close enough.
-    Ties go to the more clickable kind, then the shorter name, then top-left."""
-    best: tuple[float, float, int, int, int] | None = None
+    """The best-matching candidate (with its score), or None if nothing is close enough."""
+    best: tuple[float, int, int, int] | None = None
     winner: Candidate | None = None
     for c in candidates:
         s = score(target, c.name)
         if s < MIN_SCORE:
             continue
-        # Plain text and long labels (paragraphs, chat messages) only count when the
-        # whole label matches, not when it merely contains the words somewhere.
-        if (c.kind in ("Text", "Image") or len(c.name) > 40) and s < 0.9:
+        # Plain text and long labels (paragraphs, chat messages) only count on a strong
+        # match of the whole label or its first words, never "contains the words somewhere".
+        if (c.kind in ("Text", "Image") or len(c.name) > 40) and s < 0.88:
             continue
-        key = (s, CLICKABLE.get(c.kind, 0.85), -len(c.name), -c.rect[1], -c.rect[0])
+        key = (s * CLICKABLE.get(c.kind, 0.9), -len(c.name), -c.rect[1], -c.rect[0])
         if best is None or key > best:
-            best, winner = key, c
+            best, winner = key, replace(c, score=round(s, 3))
     return winner
 
 
@@ -180,22 +225,53 @@ class SmartClicker:
         self,
         uia: Callable[[], list[Candidate]] = uia_candidates,
         ocr_words: Callable[[], list] | None = None,
+        window_id: Callable[[], int] | None = None,
+        budget_s: float = UIA_BUDGET_S,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self.uia = uia
         self.ocr_words = ocr_words if ocr_words is not None else _screen_words
+        self.window_id = window_id or (lambda: int(ctypes.windll.user32.GetForegroundWindow() or 0))
+        self.budget_s = budget_s
+        self.clock = clock
+        self._slow_until: dict[int, float] = {}
 
     def find(self, target: str) -> Candidate | None:
-        try:
-            hit = best_match(target, self.uia())
-            if hit is not None:
-                return hit
-        except Exception:
-            log.exception("UI Automation failed; trying OCR")
+        hit = best_match(target, self._uia_in_time())
+        if hit is not None:
+            return hit
         try:
             return best_match(target, ocr_candidates(self.ocr_words()))
         except Exception:
             log.exception("OCR failed")
             return None
+
+    def _uia_in_time(self) -> list[Candidate]:
+        """UI Automation, but give up after budget_s (then OCR is used instead).
+
+        Some windows are huge (a WhatsApp chat can have 20,000 elements and take
+        15 s); those are remembered for a while and go straight to OCR.
+        """
+        win = self.window_id()
+        if self._slow_until.get(win, 0.0) > self.clock():
+            return []
+        result: list[list[Candidate]] = []
+
+        def run() -> None:
+            try:
+                result.append(self.uia())
+            except Exception:
+                log.exception("UI Automation failed; trying OCR")
+                result.append([])
+
+        worker = threading.Thread(target=run, name="uia-find", daemon=True)
+        worker.start()
+        worker.join(self.budget_s)
+        if not result:
+            log.info("window too slow for UI Automation; using OCR")
+            self._slow_until[win] = self.clock() + SLOW_MEMORY_S
+            return []
+        return result[0]
 
 
 def _screen_words() -> list:

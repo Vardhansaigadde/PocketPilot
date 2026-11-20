@@ -367,3 +367,11 @@ def test_grid_number_too_big_after_zoom_is_refused():
     run(ex, {"action": "grid_zoom", "cell": 14})
     out = run(ex, {"action": "grid_click", "cell": 40})
     assert not out.ok and "1 to 9" in out.say and ctl.calls == []
+
+
+def test_smart_click_says_when_it_was_a_close_match():
+    from agent.smart_click import Candidate
+
+    ex, _, _ = make()
+    ex.clicker = FakeClicker(Candidate("Kidduuu", "DataItem", (0, 0, 10, 10), score=0.9))
+    assert run(ex, {"action": "click_on", "target": "kidd u"}).say == "Clicked Kidduuu (closest match)."

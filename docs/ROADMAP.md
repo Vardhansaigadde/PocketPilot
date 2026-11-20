@@ -21,7 +21,7 @@ Speak into the phone (mic button) or to the laptop ("Hey Pilot" wake word).
 - Screen explainer: "what's on my screen?", "summarize this page", "explain this error".
 - Done when: smart click hits the right target on 10 test screens; summaries correct on 5 test pages.
 
-## v4 — Task agent + messaging + memory (Jan 4 – Jan 24)
+## v4 — Task agent + messaging + memory (Jan 4 – Jan 24) 🧪 built, testing with `docs/v4-tests.md` (+ WhatsApp calls)
 - Agent loop: plan → look → decide → act → check, step limit 15, every step logged to SQLite.
 - Messaging: "reply to Ravi that I'll be late" → opens WhatsApp Desktop, drafts, shows the draft on the phone, sends ONLY after Approve.
 - Memory: "what was I working on yesterday?" answers from the action log.

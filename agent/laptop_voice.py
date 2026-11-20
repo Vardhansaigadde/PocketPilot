@@ -147,7 +147,7 @@ class LaptopVoice:
                 if audio.size == 0:
                     continue
                 self.broadcast([{"t": "busy", "on": True}])
-                messages = self.assistant.handle_audio(audio)
+                messages = self.assistant.handle_audio(audio, source="laptop mic")
                 self.broadcast([*messages, {"t": "busy", "on": False}])
                 if speaker is not None:
                     for m in messages:

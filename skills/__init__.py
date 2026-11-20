@@ -12,7 +12,7 @@ from typing import Callable
 
 import httpx
 
-from . import air_quality, weather, web_search, websites, wikipedia
+from . import air_quality, cricket, currency, dictionary, news, weather, web_search, websites, wikipedia
 from .common import SkillError
 
 log = logging.getLogger("pocketpilot.skills")
@@ -46,6 +46,8 @@ class WebSkills:
         amazon_domain: str = "www.amazon.in",
         open_app_link: Callable[[str], None] | None = None,
         app_available: Callable[[str], bool] = lambda target: False,
+        gnews_key: str | None = None,
+        cricket_key: str | None = None,
     ) -> None:
         self.client = client
         self.open_url = open_url
@@ -53,6 +55,8 @@ class WebSkills:
         self.amazon_domain = amazon_domain
         self.open_app_link = open_app_link
         self.app_available = app_available
+        self.gnews_key = gnews_key
+        self.cricket_key = cricket_key
 
     def _place(self, place: str | None) -> str | None:
         return (place or self.home_city or "").strip() or None
@@ -62,8 +66,9 @@ class WebSkills:
             return fn()
         except SkillError as exc:
             return str(exc)
-        except httpx.HTTPError:
-            log.exception("%s request failed", what)
+        except httpx.HTTPError as exc:
+            # Not log.exception: the URL can contain an API key.
+            log.warning("%s request failed: %s", what, type(exc).__name__)
             return f"I couldn't get the {what} right now. Is the internet on?"
 
     def weather(self, place: str | None) -> str:
@@ -84,6 +89,18 @@ class WebSkills:
         except wikipedia.NeedsContact:
             return ("Wikipedia needs a contact link. Put your GitHub repo URL in .env as "
                     "POCKETPILOT_CONTACT=https://github.com/you/pocketpilot")
+
+    def currency(self, amount: float, from_cur: str, to_cur: str) -> str:
+        return self._safe(lambda: currency.convert(self.client, amount, from_cur, to_cur), "exchange rate")
+
+    def define(self, word: str) -> str:
+        return self._safe(lambda: dictionary.define(self.client, word), "meaning")
+
+    def news(self, topic: str | None) -> str:
+        return self._safe(lambda: news.headlines(self.client, self.gnews_key, topic), "news")
+
+    def cricket(self) -> str:
+        return self._safe(lambda: cricket.scores(self.client, self.cricket_key), "cricket scores")
 
     def open_site(self, site: str) -> str:
         url = websites.resolve(site)

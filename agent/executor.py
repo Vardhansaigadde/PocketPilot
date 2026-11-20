@@ -16,10 +16,11 @@ from server.input_control import Controller
 
 from . import apps
 from .approvals import Approvals, Pending
+from .memory import Memory, describe
 from .smart_click import is_risky
 from .commands import (
-    GRID_CELLS, AirQualityCmd, ClickCmd, CloseWindowCmd, Command, GoToCmd, GridClickCmd, GridCmd,
-    GridZoomCmd,
+    GRID_CELLS, AirQualityCmd, ClickCmd, CricketCmd, CurrencyCmd, DefineCmd, NewsCmd, CloseWindowCmd, Command, GoToCmd, GridClickCmd, GridCmd,
+    ForgetCmd, GridZoomCmd, MemoryCmd, TaskCmd, WhatsAppCmd,
     ScreenCmd, SmartClickCmd,
     HotkeyCmd, KeyCmd, MediaCmd, OpenAppCmd, ScrollCmd, SearchCmd, StopCmd, TypeCmd,
     UnknownCmd, WeatherCmd, WikiCmd,
@@ -36,6 +37,10 @@ class Skills(Protocol):
     def wiki(self, topic: str) -> str: ...
     def search(self, site: str, query: str) -> str: ...
     def open_site(self, site: str) -> str: ...
+    def currency(self, amount: float, from_cur: str, to_cur: str) -> str: ...
+    def define(self, word: str) -> str: ...
+    def news(self, topic: str | None) -> str: ...
+    def cricket(self) -> str: ...
 
 
 class Clicker(Protocol):
@@ -44,6 +49,12 @@ class Clicker(Protocol):
 
 class Screen(Protocol):
     def look(self, mode: str) -> str: ...      # describe / summarize / explain_error / read
+
+
+class Messenger(Protocol):
+    def open_chat(self, contact: str) -> str: ...
+    def prepare_message(self, contact: str, text: str) -> Any: ...   # whatsapp.Prepared
+    def prepare_call(self, contact: str, video: bool = False) -> Any: ...
 
 
 class Grid(Protocol):
@@ -93,6 +104,9 @@ class Executor:
         app_available: Callable[[str], bool] = apps.is_available,
         clicker: Clicker | None = None,
         screen: Screen | None = None,
+        memory: Memory | None = None,
+        summarize: Callable[[str], str] | None = None,
+        whatsapp: Messenger | None = None,
     ) -> None:
         self.ctl = controller
         self.approvals = approvals
@@ -102,6 +116,9 @@ class Executor:
         self.app_available = app_available
         self.clicker = clicker
         self.screen = screen
+        self.memory = memory
+        self.summarize = summarize   # text model, for long histories
+        self.whatsapp = whatsapp
 
     def run(self, cmd: Command) -> Outcome:
         try:
@@ -149,11 +166,18 @@ class Executor:
             return self._grid(cmd)
         if isinstance(cmd, SmartClickCmd):
             return self._smart_click(cmd)
+        if isinstance(cmd, TaskCmd):     # the assistant hands tasks to the task agent
+            return Outcome("Multi-step tasks aren't available.", ok=False)
+        if isinstance(cmd, WhatsAppCmd):
+            return self._whatsapp(cmd)
+        if isinstance(cmd, (MemoryCmd, ForgetCmd)):
+            return self._memory(cmd)
         if isinstance(cmd, ScreenCmd):
             if self.screen is None:
                 return Outcome("Screen reading isn't available.", ok=False)
             return Outcome(self.screen.look(cmd.mode))
-        if isinstance(cmd, (WeatherCmd, AirQualityCmd, WikiCmd, SearchCmd, GoToCmd)):
+        if isinstance(cmd, (WeatherCmd, AirQualityCmd, WikiCmd, SearchCmd, GoToCmd, CurrencyCmd, DefineCmd,
+                            NewsCmd, CricketCmd)):
             if self.skills is None:
                 return Outcome("That skill isn't available.", ok=False)
             if isinstance(cmd, WeatherCmd):
@@ -164,6 +188,14 @@ class Executor:
                 return Outcome(self.skills.wiki(cmd.topic))
             if isinstance(cmd, GoToCmd):
                 return Outcome(self.skills.open_site(cmd.site))
+            if isinstance(cmd, CurrencyCmd):
+                return Outcome(self.skills.currency(cmd.amount, cmd.from_cur, cmd.to_cur))
+            if isinstance(cmd, DefineCmd):
+                return Outcome(self.skills.define(cmd.word))
+            if isinstance(cmd, NewsCmd):
+                return Outcome(self.skills.news(cmd.topic))
+            if isinstance(cmd, CricketCmd):
+                return Outcome(self.skills.cricket())
             return Outcome(self.skills.search(cmd.site, cmd.query))
         if isinstance(cmd, UnknownCmd):
             return Outcome(cmd.say, ok=False)
@@ -192,6 +224,53 @@ class Executor:
         self.ctl.move_to(x, y)
         self.ctl.click(cmd.button, cmd.count)
         return Outcome(f"Clicked {cmd.cell}.")
+
+    def _whatsapp(self, cmd: WhatsAppCmd) -> Outcome:
+        """Get the chat ready, then wait for Approve before anything is sent or dialled."""
+        if self.whatsapp is None:
+            return Outcome("WhatsApp control isn't available.", ok=False)
+        from .whatsapp import WhatsAppError
+
+        try:
+            if cmd.kind == "open":
+                return Outcome(f"Opened your chat with {self.whatsapp.open_chat(cmd.contact)}.")
+            if cmd.kind == "message":
+                if not cmd.text:
+                    return Outcome(f"What should I say to {cmd.contact}?", ok=False)
+                ready = self.whatsapp.prepare_message(cmd.contact, cmd.text)
+                question = f'Send to {ready.chat} on WhatsApp: "{cmd.text}"?'
+                say = f"Message to {ready.chat} is ready. Approve on your phone to send it."
+            else:
+                video = cmd.kind == "video_call"
+                ready = self.whatsapp.prepare_call(cmd.contact, video=video)
+                question = f"{'Video' if video else 'Voice'} call {ready.chat} on WhatsApp?"
+                say = f"Approve on your phone to call {ready.chat}."
+        except WhatsAppError as exc:
+            return Outcome(str(exc), ok=False)
+
+        def go() -> str:
+            try:
+                return ready.go()
+            except WhatsAppError as exc:
+                return str(exc)
+
+        pending = self.approvals.request(question, go, on_cancel=ready.undo)
+        return Outcome(say, approval=pending)
+
+    def _memory(self, cmd: MemoryCmd | ForgetCmd) -> Outcome:
+        if self.memory is None:
+            return Outcome("History isn't turned on.", ok=False)
+        memory = self.memory
+        if isinstance(cmd, ForgetCmd):
+            def forget() -> str:
+                return f"Deleted {memory.clear()} history entries."
+            pending = self.approvals.request("Delete all of PocketPilot's history?", forget)
+            return Outcome("Approve on your phone to delete your history.", approval=pending)
+        entries = memory.recall(cmd.period)
+        if len(entries) > 8 and self.summarize is not None:
+            lines = "\n".join(f"{e.at:%a %H:%M} {e.said} -> {e.reply}" for e in entries[-80:])
+            return Outcome(self.summarize(lines))
+        return Outcome(describe(entries[-8:], cmd.period))
 
     def _smart_click(self, cmd: SmartClickCmd) -> Outcome:
         if self.clicker is None:

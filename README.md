@@ -4,9 +4,26 @@
 
 Zero cost: everything is open source and runs on your own laptop. No cloud account needed.
 
-> Status: **v1 (touchpad) and v2 (voice commands) work**, tested on a real phone with the [25-command checklist](docs/v2-commands.md). **v3 (smart click + screen explainer) works** too ([v3 checklist](docs/v3-tests.md)). Next: v4, the task agent. See the [roadmap](#roadmap).
+> Status: **v1 (touchpad) and v2 (voice commands) work**, tested on a real phone with the [25-command checklist](docs/v2-commands.md). **v3 (smart click + screen explainer) works** too ([v3 checklist](docs/v3-tests.md)). **v4 (WhatsApp, tasks, memory, more skills) is built** and being tested with the [v4 checklist](docs/v4-tests.md). See the [roadmap](#roadmap).
 
 <!-- Add a demo GIF here once recorded: docs/demo-v1.gif -->
+
+## WhatsApp, tasks, memory and more skills (v4)
+
+| Say | What happens |
+| --- | --- |
+| "message amma that I'll be late", "reply to Kidduuu saying OK" | Opens the chat and types the message; **sends only after you tap Approve** (Cancel clears the draft) |
+| "call amma", "video call amma on WhatsApp" | Opens the chat; **calls only after Approve** |
+| "open notepad and write my shopping list: milk, eggs and bread" | The AI plans simple steps once, then runs them one by one (shown on the phone) |
+| "what did I do today?", "what was I working on yesterday?" | Answers from a local history log (`data/history.db`, never uploaded); "clear my history" deletes it |
+| "convert 100 dollars to rupees", "dollar rate" | Today's exchange rate (Frankfurter, no key) |
+| "define serendipity", "what does ephemeral mean" | Dictionary meaning + example (no key) |
+| "news", "news about ISRO" | Top headlines (free key from gnews.io in `.env`) |
+| "cricket score" | Live scores (free key from cricketdata.org in `.env`) |
+
+WhatsApp is driven through its own button names (UI Automation), not by guessing where to click. Before sending or calling it checks that the chat header really is the person you named, and again right before it presses Enter or the call button.
+
+Multi-step tasks use **plan once, then run simple commands**: the AI turns your request into a short list like "open notepad", "type …", and each step goes through the normal checks (allow-list, blocked apps, Approve). An earlier "look, decide, act" loop was tested and dropped: on a CPU the 4B model took about 15 s per step and lost track of what it had done.
 
 ## Smart click and screen explainer (v3)
 
@@ -135,8 +152,8 @@ Voice: phone mic / text box / "Hey Jarvis" ─► Whisper (speech → text, on t
 - **server/pairing.py**: a random token in the QR code; connections without it are refused.
 - **server/certs.py**: makes a small local certificate authority and an HTTPS certificate for the laptop's Wi-Fi address, so the phone can use its mic.
 - **server/input_control.py**: turns messages into real mouse and keyboard actions. Released safely if the phone disconnects mid-drag.
-- **agent/**: the voice assistant. `commands.py` (every allowed action), `router.py` (instant phrases), `llm.py` (Ollama), `stt.py` (Whisper), `executor.py` (does the action), `approvals.py`, `grid.py`, `laptop_voice.py` (wake word), `apps.py` (the only apps it can open), `smart_click.py` (UI Automation + OCR finder), `screen.py` (capture + Windows OCR), `explainer.py` (summaries, errors, descriptions).
-- **skills/**: weather, air quality, Wikipedia and web search. Free, no API keys.
+- **agent/**: the voice assistant. `commands.py` (every allowed action), `router.py` (instant phrases), `llm.py` (Ollama), `stt.py` (Whisper), `executor.py` (does the action), `approvals.py`, `grid.py`, `laptop_voice.py` (wake word), `apps.py` (the only apps it can open), `smart_click.py` (UI Automation + OCR finder), `screen.py` (capture + Windows OCR), `explainer.py` (summaries, errors, descriptions), `whatsapp.py` (messages and calls), `task_agent.py` (plan-once multi-step tasks), `memory.py` (history log).
+- **skills/**: weather, air quality, Wikipedia, web search, websites, currency and dictionary (no keys); news and cricket (free keys).
 
 ## Safety
 
@@ -144,7 +161,7 @@ Voice: phone mic / text box / "Hey Jarvis" ─► Whisper (speech → text, on t
 - Everything between phone and laptop is encrypted (HTTPS / secure WebSocket), so others on the Wi-Fi can't read your typing or steal the pairing token. Private keys stay in `data/` and are never sent to the phone.
 - The phone can only trigger actions on a fixed allow-list. It cannot run programs or commands.
 - The AI model never runs anything itself: its answer must match the command format exactly, or nothing happens. It can only open apps from a fixed list (no terminal, no PowerShell), and searches only open a results page.
-- Closing a window waits for **Approve** on the phone and cancels itself after 30 seconds.
+- Closing a window, sending a WhatsApp message, making a call, and clicking buttons like Send, Delete, Pay, Sign in, Close, Exit or End call all wait for **Approve** on the phone, and cancel themselves after 30 seconds.
 - Voice audio is processed on the laptop and never saved. Weather, air quality and Wikipedia are the only things that go to the internet, and they only send the place or topic.
 - Websites always open as `https://` pages. Files, scripts and other kinds of links are refused.
 - Kill switch: the **■** button, saying "stop", or **Ctrl+C** in the terminal.
@@ -173,7 +190,7 @@ It prints which command the model picks for each phrase, how long it took, and t
 | **v1 Touchpad** ✅ | Phone touchpad, keyboard, media keys, QR pairing |
 | **v2 Voice commands** ✅ | Phone mic + "Hey Jarvis" on the laptop ("Hey Pilot" later); open apps, weather, Edge/YouTube search, grid clicking |
 | **v3 Smart click + screen explainer** ✅ | "Click the Login button", "summarize this page", "explain this error" |
-| v4 Task agent | Multi-step tasks, WhatsApp replies with Approve, memory of what you did |
+| v4 Task agent 🧪 | Multi-step tasks, WhatsApp messages **and calls** with Approve, memory of what you did, currency/dictionary/news/cricket |
 | v5 Telugu + parent mode | Telugu voice commands and replies, simple screen for parents, Android app |
 | v6 Macros + MCP | "Watch me once" skills, MCP server for other AI apps |
 

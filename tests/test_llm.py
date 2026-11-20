@@ -92,3 +92,17 @@ def test_warm_up_sends_one_request_in_the_background():
 
 def test_warm_up_never_crashes_when_ollama_is_off():
     planner(httpx.ConnectError("refused")).warm_up()   # just logs a warning
+
+
+def test_plan_steps_asks_for_a_list_and_reuses_the_instructions():
+    seen = []
+    p = planner('{"steps": ["open notepad", "type hello", "", "press enter"]}', seen=seen)
+    assert p.plan_steps("open notepad and type hello") == ["open notepad", "type hello", "press enter"]
+    body = seen[0]
+    assert body["format"]["properties"]["steps"]["type"] == "array"
+    assert body["messages"][0]["content"].startswith("You control a Windows laptop")   # same system prompt
+    assert "PLAN MODE" in body["messages"][1]["content"]
+
+
+def test_bad_plan_is_empty():
+    assert planner("not json").plan_steps("x") == []

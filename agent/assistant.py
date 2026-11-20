@@ -12,8 +12,9 @@ import threading
 import time
 from typing import Any, Callable, Protocol
 
-from .commands import Command, GoToCmd, OpenAppCmd, ScreenCmd, SearchCmd, UnknownCmd
+from .commands import Command, GoToCmd, OpenAppCmd, ScreenCmd, SearchCmd, TaskCmd, UnknownCmd
 from .executor import Executor, Outcome
+from .memory import Memory
 from .router import fast_path, split_steps
 
 log = logging.getLogger("pocketpilot.assistant")
@@ -58,24 +59,28 @@ class Assistant:
         transcriber: Transcriber | None = None,
         sleep: Callable[[float], None] = time.sleep,
         notify: Callable[[list[dict]], None] | None = None,
+        memory: Memory | None = None,
+        agent: Any = None,
     ) -> None:
         self.executor = executor
         self.planner = planner
         self.transcriber = transcriber
         self.sleep = sleep
         self.notify = notify   # send a message to the phone straight away (slow commands)
+        self.memory = memory   # local history log (data/history.db)
+        self.agent = agent     # task_agent.TaskAgent for multi-step requests
         self._busy = threading.Lock()
 
     # -- entry points (called from a worker thread) ---------------------------
-    def handle_text(self, text: str) -> list[dict]:
+    def handle_text(self, text: str, source: str = "typed") -> list[dict]:
         if not self._busy.acquire(blocking=False):
             return [reply("Still working on the last one…", ok=False)]
         try:
-            return self._handle_text(text)
+            return self._handle_text(text, source)
         finally:
             self._busy.release()
 
-    def handle_audio(self, audio: Any) -> list[dict]:
+    def handle_audio(self, audio: Any, source: str = "phone mic") -> list[dict]:
         if self.transcriber is None:
             return [reply("Voice isn't set up on the laptop.", ok=False)]
         if not self._busy.acquire(blocking=False):
@@ -88,7 +93,7 @@ class Assistant:
                 return [reply("Sorry, I couldn't process that audio.", ok=False)]
             if not text:
                 return [reply("I didn't catch that. Try again?", ok=False)]
-            return [{"t": "heard", "text": text}, *self._handle_text(text)]
+            return [{"t": "heard", "text": text}, *self._handle_text(text, source)]
         finally:
             self._busy.release()
 
@@ -96,7 +101,9 @@ class Assistant:
         return [reply(self.executor.approvals.resolve(approval_id, ok))]
 
     def stop(self) -> list[dict]:
-        """Kill switch. Never waits for the busy lock."""
+        """Kill switch. Never waits for the busy lock; also ends a running task."""
+        if self.agent is not None:
+            self.agent.cancel()
         return [reply(self.executor.stop().say)]
 
     # -- internals -------------------------------------------------------------
@@ -108,17 +115,40 @@ class Assistant:
             return UnknownCmd(action="unknown", say=DIDNT_UNDERSTAND)
         return self.planner.to_command(text)
 
-    def _handle_text(self, text: str) -> list[dict]:
+    def _handle_text(self, text: str, source: str = "typed") -> list[dict]:
         steps = split_steps(text)
         if len(steps) > 1:
-            return self._handle_steps(steps)
+            return self._handle_steps(steps, source)
         try:
             cmd = self.to_command(text)
         except PlannerError as exc:
             return [reply(str(exc), ok=False)]
         log.info("%r -> %r", text, cmd)
+        return _outcome_messages(self._run(cmd, text, source))
+
+    def _run(self, cmd: Command, said: str, source: str) -> Outcome:
+        """Run one command and write it to the history log."""
         self._say_wait(cmd)
-        return _outcome_messages(self.executor.run(cmd))
+        if isinstance(cmd, TaskCmd) and self.agent is not None:
+            out = self._task(cmd)
+        else:
+            out = self.executor.run(cmd)
+        if self.memory is not None:
+            try:
+                self.memory.log(source, said, cmd.model_dump(), out.ok, out.say)
+            except Exception:  # history must never break a command
+                log.exception("could not write history")
+        return out
+
+    def _task(self, cmd: TaskCmd) -> Outcome:
+        if self.notify is not None:
+            self.notify([reply(f"Planning the steps for: {cmd.goal}")])
+        say, ok, approval = self.agent.run(cmd.goal)
+        return Outcome(say, ok=ok, approval=approval)
+
+    def act(self, cmd: Command, said: str) -> Outcome:
+        """One task-agent step: run it and log it (source "task")."""
+        return self._run(cmd, said, "task")
 
     def _say_wait(self, cmd: Command) -> None:
         """Looking at the screen takes 20-40 s on a CPU: tell the user right away."""
@@ -126,7 +156,7 @@ class Assistant:
             secs = "40" if cmd.mode == "describe" else "30"
             self.notify([reply(f"Looking at your screen… this takes about {secs} seconds.")])
 
-    def _handle_steps(self, steps: list[str]) -> list[dict]:
+    def _handle_steps(self, steps: list[str], source: str = "typed") -> list[dict]:
         """Run "open edge then type github.com then press enter" one step at a time.
 
         Stops at the first step that fails or needs Approve on the phone.
@@ -138,8 +168,7 @@ class Assistant:
             except PlannerError as exc:
                 return [reply(f"Step {i} ({step}): {exc}", ok=False)]
             log.info("step %d %r -> %r", i, step, cmd)
-            self._say_wait(cmd)
-            out = self.executor.run(cmd)
+            out = self._run(cmd, step, source)
             if not out.ok:
                 done = " ".join(said)
                 return [reply(f"{done} Stopped at step {i} ({step}): {out.say}".strip(), ok=False)]

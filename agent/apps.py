@@ -39,7 +39,7 @@ ALIASES: dict[str, str] = {
     "note pad": "notepad", "notes": "notepad",
     "calc": "calculator", "calculator app": "calculator",
     "file explorer": "files", "explorer": "files", "my files": "files", "file manager": "files",
-    "this pc": "files", "my computer": "files",
+    "this pc": "files", "my computer": "files", "folders": "files", "my folders": "files", "files": "files",
     "windows settings": "settings", "setting": "settings",
     "whats app": "whatsapp", "whatsapp desktop": "whatsapp",
     "vs code": "vscode", "visual studio code": "vscode", "code": "vscode",

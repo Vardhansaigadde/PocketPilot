@@ -35,6 +35,9 @@ EXPLAIN = ("Below is text from the user's screen that contains an error. In simp
            "sentences what the error means and the most likely fix. Plain text only.")
 DESCRIBE = "In 2-3 short, simple sentences, tell the user what is on their screen. Plain text only."
 
+HISTORY = ("Below is a log of what the user asked their laptop assistant (time, request -> result). "
+           "In 2-3 short sentences, tell them what they worked on. Plain text only.")
+
 # Forcing this shape stops the model from "thinking out loud" before it answers.
 ANSWER_SHAPE = {"type": "object", "properties": {"answer": {"type": "string"}}, "required": ["answer"]}
 
@@ -97,6 +100,16 @@ class ScreenExplainer:
                     self.after()
                 except Exception:  # pragma: no cover - best effort
                     log.exception("after-hook failed")
+
+    def summarize_history(self, log_text: str) -> str:
+        """Used for "what was I working on yesterday?" when the day has many entries."""
+        try:
+            return self._ask(self.text_model, HISTORY, text=log_text[:TEXT_LIMIT])
+        except httpx.HTTPError:
+            return "I couldn't summarize your history right now."
+        finally:
+            if self.after is not None:
+                self.after()
 
     def _look(self, mode: str) -> str:
         shot = self.capture()

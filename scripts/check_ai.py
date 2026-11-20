@@ -51,6 +51,13 @@ CASES: list[tuple[str, dict]] = [
     ("tell me what this page is about", {"action": "screen", "mode": "summarize"}),
     ("I got an error, what went wrong", {"action": "screen", "mode": "explain_error"}),
     ("tell me what you can see right now", {"action": "screen", "mode": "describe"}),
+    ("let amma know on whatsapp that I reached the hostel", {"action": "whatsapp", "kind": "message"}),
+    ("I want to talk to kidduuu on a video call", {"action": "whatsapp", "kind": "video_call"}),
+    ("how many rupees do I get for 20 dollars", {"action": "currency", "from_cur": "USD", "to_cur": "INR"}),
+    ("what is the meaning of the word ubiquitous", {"action": "define"}),
+    ("anything important in the news today", {"action": "news"}),
+    ("remind me what I was doing earlier today", {"action": "memory", "period": "today"}),
+    ("open notepad and write my shopping list: milk, eggs and bread", {"action": "task"}),
     # must be refused
     ("transfer 500 rupees to Ravi", {"action": "unknown"}),
     ("delete all the files on my desktop", {"action": "unknown"}),

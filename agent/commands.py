@@ -98,6 +98,25 @@ class ScreenCmd(_Cmd):
     mode: Literal["describe", "summarize", "explain_error", "read"] = "describe"
 
 
+class WhatsAppCmd(_Cmd):
+    """Message or call someone on WhatsApp. Sending and calling always wait for Approve."""
+    action: Literal["whatsapp"]
+    contact: str = Field(min_length=1, max_length=60)
+    kind: Literal["message", "voice_call", "video_call", "open"] = "open"
+    text: str | None = Field(default=None, max_length=500)
+
+
+class MemoryCmd(_Cmd):
+    """"What was I working on yesterday?" -> answer from the local history log."""
+    action: Literal["memory"]
+    period: Literal["today", "yesterday", "last_hour", "this_week"] = "today"
+
+
+class ForgetCmd(_Cmd):
+    """"Clear my history" (asks Approve on the phone first)."""
+    action: Literal["forget_history"]
+
+
 class WeatherCmd(_Cmd):
     action: Literal["weather"]
     place: str | None = Field(default=None, max_length=80)
@@ -113,6 +132,27 @@ class WikiCmd(_Cmd):
     topic: str = Field(min_length=1, max_length=100)
 
 
+class CurrencyCmd(_Cmd):
+    action: Literal["currency"]
+    amount: float = Field(default=1, gt=0, le=1e12)
+    from_cur: str = Field(min_length=3, max_length=3)     # ISO code, e.g. USD
+    to_cur: str = Field(default="INR", min_length=3, max_length=3)
+
+
+class DefineCmd(_Cmd):
+    action: Literal["define"]
+    word: str = Field(min_length=1, max_length=40)
+
+
+class NewsCmd(_Cmd):
+    action: Literal["news"]
+    topic: str | None = Field(default=None, max_length=80)
+
+
+class CricketCmd(_Cmd):
+    action: Literal["cricket"]
+
+
 class GoToCmd(_Cmd):
     """Open a website by name ("github") or address ("github.com/user/repo")."""
     action: Literal["goto"]
@@ -123,6 +163,12 @@ class SearchCmd(_Cmd):
     action: Literal["search"]
     site: Literal["bing", "google", "youtube", "amazon", "github", "chatgpt", "spotify"] = "bing"
     query: str = Field(min_length=1, max_length=200)
+
+
+class TaskCmd(_Cmd):
+    """A request that needs several steps; the task agent works through it."""
+    action: Literal["task"]
+    goal: str = Field(min_length=3, max_length=300)
 
 
 class StopCmd(_Cmd):
@@ -138,8 +184,8 @@ class UnknownCmd(_Cmd):
 Command = Annotated[
     Union[
         ScrollCmd, ClickCmd, TypeCmd, KeyCmd, MediaCmd, HotkeyCmd, OpenAppCmd,
-        CloseWindowCmd, GridCmd, GridClickCmd, GridZoomCmd, SmartClickCmd, ScreenCmd, WeatherCmd, AirQualityCmd, WikiCmd,
-        GoToCmd, SearchCmd, StopCmd, UnknownCmd,
+        CloseWindowCmd, GridCmd, GridClickCmd, GridZoomCmd, SmartClickCmd, ScreenCmd, WhatsAppCmd, MemoryCmd, ForgetCmd, WeatherCmd, AirQualityCmd, WikiCmd,
+        CurrencyCmd, DefineCmd, NewsCmd, CricketCmd, GoToCmd, SearchCmd, TaskCmd, StopCmd, UnknownCmd,
     ],
     Field(discriminator="action"),
 ]

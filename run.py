@@ -87,6 +87,8 @@ def main() -> None:
     app = create_app(token=token, controller=controller, ca_cert=ca_cert, assistant=assistant)
     if assistant is not None:
         assistant.notify = app.state.phones.broadcast_from_thread   # "Looking at your screen…"
+        if assistant.agent is not None:
+            assistant.agent.notify = assistant.notify                # "Step 2: …"
 
     if assistant is not None and not args.no_wake:
         try:
@@ -110,7 +112,10 @@ def build_assistant(controller, args):  # noqa: ANN001, ANN201 - kept simple for
         from agent.explainer import ScreenExplainer
         from agent.grid import TkGrid
         from agent.llm import OllamaPlanner
+        from agent.memory import Memory
+        from agent.whatsapp import WhatsApp
         from agent.smart_click import SmartClicker
+        from agent.task_agent import TaskAgent
         from agent.stt import WhisperTranscriber
         from skills import WebSkills, make_client
         from skills.web_search import open_in_edge
@@ -124,18 +129,25 @@ def build_assistant(controller, args):  # noqa: ANN001, ANN201 - kept simple for
 
     skills = WebSkills(make_client(contact=cfg.contact), open_in_edge, home_city=cfg.home_city,
                        open_app_link=start_app, app_available=is_available,
+                       gnews_key=cfg.gnews_key, cricket_key=cfg.cricket_key,
                        amazon_domain=cfg.amazon_domain)
     planner = OllamaPlanner(args.model or cfg.model, cfg.ollama_url)
     explainer = ScreenExplainer(planner.model, cfg.vision_model, cfg.ollama_url,
                                 after=planner.warm_up)   # get the command model ready again afterwards
+    memory = Memory(DATA / "history.db")   # local only; "clear my history" deletes it
+    clicker = SmartClicker()
     executor = Executor(controller, Approvals(), skills=skills, grid=TkGrid(),
-                        clicker=SmartClicker(), screen=explainer)
+                        clicker=clicker, screen=explainer,
+                        memory=memory, summarize=explainer.summarize_history,
+                        whatsapp=WhatsApp(controller))
     planner.warm_up()
     transcriber = WhisperTranscriber(cfg.whisper_model)
     transcriber.preload()
     print(f"  Voice: Whisper {cfg.whisper_model}, AI model {planner.model} (Ollama)"
           + (", laptop mic: say \"Hey Jarvis\"" if not args.no_wake else ""))
-    return Assistant(executor, planner=planner, transcriber=transcriber)
+    assistant = Assistant(executor, planner=planner, transcriber=transcriber, memory=memory)
+    assistant.agent = TaskAgent(plan=planner.plan_steps, to_command=assistant.to_command, act=assistant.act)
+    return assistant
 
 
 if __name__ == "__main__":

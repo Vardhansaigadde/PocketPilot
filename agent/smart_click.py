@@ -39,7 +39,10 @@ SLOW_MEMORY_S = 120.0    # remember a slow window for this long
 RISKY = re.compile(
     r"\b(send|delete|remove|erase|discard|pay|payment|buy|purchase|order|checkout|check out|"
     r"sign ?in|log ?in|sign ?out|log ?out|submit|confirm|install|uninstall|transfer|"
-    r"unsubscribe|post|publish|reset|format)\b",
+    r"unsubscribe|post|publish|reset|format|"
+    # closing / leaving things can lose work or end a call
+    r"close|exit|quit|don'?t save|do not save|leave|end call|hang up|block|report|archive|"
+    r"restart|shut ?down|sign off)\b",
     re.I,
 )
 
@@ -245,6 +248,28 @@ class SmartClicker:
         except Exception:
             log.exception("OCR failed")
             return None
+
+    def visible_names(self, limit: int = 40) -> str:
+        """Short screen description for the task agent: window title + clickable names."""
+        title = ""
+        try:
+            buf = ctypes.create_unicode_buffer(200)
+            ctypes.windll.user32.GetWindowTextW(self.window_id(), buf, 200)
+            title = buf.value
+        except Exception:  # pragma: no cover - non-Windows
+            pass
+        names: list[str] = []
+        for c in sorted(self._uia_in_time(), key=lambda c: (c.rect[1] // 20, c.rect[0])):
+            name = " ".join(c.name.split())[:40]
+            if name and name not in names:
+                names.append(name)
+        if not names:
+            try:
+                names = [" ".join(w.name.split()) for w in ocr_candidates(self.ocr_words()) if " " not in w.name]
+            except Exception:
+                log.exception("OCR failed")
+        shown = " | ".join(names[:limit]) or "(nothing readable)"
+        return f"window '{title}'; visible: {shown}"
 
     def _uia_in_time(self) -> list[Candidate]:
         """UI Automation, but give up after budget_s (then OCR is used instead).

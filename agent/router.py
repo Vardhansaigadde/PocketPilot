@@ -8,13 +8,14 @@ from __future__ import annotations
 
 import re
 
+from skills.currency import code as currency_code
 from skills.websites import resolve as resolve_site
 
 from .apps import app_list_text, find_app
 from .commands import (
-    GRID_CELLS, UnknownCmd, AirQualityCmd, ClickCmd, CloseWindowCmd, Command, GoToCmd, GridClickCmd, GridCmd,
-    GridZoomCmd, HotkeyCmd, KeyCmd, MediaCmd, OpenAppCmd, ScreenCmd, ScrollCmd, SearchCmd, SmartClickCmd, StopCmd,
-    TypeCmd,
+    GRID_CELLS, CricketCmd, CurrencyCmd, DefineCmd, NewsCmd, UnknownCmd, AirQualityCmd, ClickCmd, CloseWindowCmd, Command, GoToCmd, GridClickCmd, GridCmd,
+    ForgetCmd, GridZoomCmd, HotkeyCmd, KeyCmd, MemoryCmd, MediaCmd, OpenAppCmd, ScreenCmd, ScrollCmd, SearchCmd, SmartClickCmd, StopCmd,
+    TypeCmd, WhatsAppCmd,
     WeatherCmd, WikiCmd,
 )
 
@@ -63,9 +64,11 @@ _simple("click|left click|click it|click that|tap", ClickCmd(action="click"))
 _simple("double click|double tap", ClickCmd(action="click", count=2))
 _simple("right click", ClickCmd(action="click", button="right"))
 _simple("middle click", ClickCmd(action="click", button="middle"))
-_simple("volume up|louder|turn it up|turn up the volume|increase volume|increase the volume",
+_simple("volume up|louder|turn it up|turn up the volume|increase volume|increase the volume"
+        "|turn the volume up|turn volume up|raise the volume|make it louder",
         MediaCmd(action="media", key="volume_up"))
 _simple("volume down|quieter|softer|turn it down|turn down the volume|decrease volume"
+        "|turn the volume down|turn volume down|make it quieter"
         "|decrease the volume|lower the volume", MediaCmd(action="media", key="volume_down"))
 _simple("mute|unmute|mute the volume|mute sound|silence", MediaCmd(action="media", key="mute"))
 _simple("play|pause|resume|play pause|play or pause|pause the music|play the music|play it|play that"
@@ -113,6 +116,10 @@ _simple("explain this error|explain the error|what does this error mean|what's t
         "|why is this failing|fix this error|help me with this error", ScreenCmd(action="screen", mode="explain_error"))
 _simple("read the screen|read this|read this page|read it to me|read the page|read it out|read it aloud",
         ScreenCmd(action="screen", mode="read"))
+_simple("clear my history|delete my history|clear history|forget my history|forget everything"
+        "|erase my history", ForgetCmd(action="forget_history"))
+_simple("cricket|cricket score|cricket scores|live score|live scores|live cricket score|what's the score"
+        "|whats the score|what is the score|score of the match|match score", CricketCmd(action="cricket"))
 _simple("weather|what's the weather|whats the weather|what is the weather|how's the weather"
         "|hows the weather|weather today|is it going to rain|will it rain|sunset"
         "|when is sunset|what time is sunset", WeatherCmd(action="weather"))
@@ -172,10 +179,50 @@ _CLICK_ON = re.compile(
 )
 _ZOOM = re.compile(r"^(?:zoom|zoom in|zoom into|zoom in on|zoom on|closer|closer to)(?: box| number| cell)? "
                    r"(?P<n>[\w-]+(?: [\w-]+)?)$", re.I)
+# "what was I working on yesterday", "what did I do today", "show my history"
+_MEMORY = re.compile(
+    r"^(?:what (?:was i (?:working on|doing)|did i do|have i done|did i work on)|show (?:me )?my "
+    r"(?:history|activity)|my history)(?: (?P<p>today|yesterday|this week|in the last hour|last hour|"
+    r"earlier today|so far))?$",
+    re.I,
+)
+_ON_WA = r"(?:\s+(?:on|in|over|through|via) (?:whatsapp|whats app|what's app|what sapp))?"
+# "call amma", "video call amma on whatsapp", "whatsapp call kidduuu"
+_WA_CALL = re.compile(
+    r"^(?:(?P<v1>video )?call|ring|phone|make a (?P<v2>video )?call to|whatsapp (?P<v3>video )?call(?: to)?)"
+    r" (?P<who>.+?)" + _ON_WA + r"(?: (?P<v4>on video|with video))?$",
+    re.I,
+)
+# "message amma that I'll be late", "tell kidduuu on whatsapp that ...", "reply to amma saying ..."
+_WA_MSG = re.compile(
+    r"^(?:message|text|whatsapp|send (?:a )?(?:whatsapp )?message to|reply to|tell)"
+    r" (?P<who>.+?)" + _ON_WA + r"(?: that| saying| to say|:|,) (?P<text>.+)$",
+    re.I | re.S,
+)
+# "send amma a message saying I'm coming"
+_WA_SEND = re.compile(r"^send (?P<who>.+?) a (?:whatsapp )?message(?: that| saying|:) (?P<text>.+)$", re.I | re.S)
+_WA_OPEN = re.compile(r"^(?:open|show|go to) (?:my |the )?(?:whatsapp )?chat (?:with|of) (?P<who>.+?)" + _ON_WA + "$",
+                      re.I)
+# "convert 100 dollars to rupees", "how much is 50 euros in rupees", "dollar to rupee", "dollar rate"
+_CUR_CONVERT = re.compile(
+    r"^(?:convert |change |how much is |what is |what's |whats )?(?P<amt>\d[\d,]*(?:\.\d+)?|a|an|one)?\s*"
+    r"(?P<from>[a-z$. ]+?)\s+(?:to|in|into)\s+(?P<to>[a-z. ]+?)(?: today| now| right now)?$",
+    re.I,
+)
+_CUR_RATE = re.compile(
+    r"^(?:what(?:'s| is) the |whats the |today'?s )?(?P<from>[a-z. ]+?)(?: to (?P<to>[a-z. ]+?))?"
+    r" (?:rate|exchange rate|price|value)(?: today| now)?$",
+    re.I,
+)
+_DEFINE = re.compile(r"^(?:define|definition of|meaning of|what is the meaning of|what's the meaning of"
+                     r"|whats the meaning of|dictionary meaning of|dictionary) (?P<word>[a-z][a-z' -]{0,38})$", re.I)
+_MEANS = re.compile(r"^what does (?P<word>[a-z][a-z'-]{0,38}) mean$", re.I)
+_NEWS = re.compile(r"^(?:news|headlines|latest news|today'?s news|top news|top headlines|what'?s the news"
+                   r"|what is the news|tell me the news|any news)(?: (?:about|on|for|from) (?P<topic>.+))?$", re.I)
 _TYPE = re.compile(r"^(?:type|type in|type out|enter text)[ :,]+(?P<text>.+)$", re.I | re.S)
 _PRESS = re.compile(r"^(?:press|hit|push)(?: the)? (?P<key>.+?)(?: key| button)?$", re.I)
 _OPEN = re.compile(r"^(?:open|launch|start|run|bring up|go to|visit|navigate to|take me to"
-                   r"|browse to|show me) (?P<app>.+)$", re.I)
+                   r"|browse to|show me|let me see) (?P<app>.+)$", re.I)
 _WEATHER = re.compile(
     r"^(?:what(?:'s| is) the |how(?:'s| is) the )?(?:weather|forecast|temperature|sunset)"
     r"(?: like)?(?: today| tomorrow)? (?:in|at|for) (?P<place>.+?)(?: today| tomorrow)?$",
@@ -206,7 +253,7 @@ MAX_STEPS = 5
 _PLAY = re.compile(r"^(?:play|put on)(?: the song| the track| song| some| me)? (?P<q>.+)$", re.I)
 _SEARCH = re.compile(r"^(?:search|google|look up|search the web)(?: for)? (?P<q>.+)$", re.I)
 _WIKI = re.compile(
-    r"^(?:who is|who was|who are|what is|what are|what was|tell me about|define|explain|wiki"
+    r"^(?:who is|who was|who are|what is|what are|what was|tell me about|explain|wiki"
     r"|wikipedia)(?: an?| the)? (?P<topic>.+)$",
     re.I,
 )
@@ -258,6 +305,45 @@ def fast_path(text: str) -> Command | None:
         if resolve_site(site):                       # "go to github", "open codechef.com"
             return GoToCmd(action="goto", site=site[:200])
         # not an app or a known website: fall through to search rules / AI
+
+    if m := _CUR_CONVERT.match(low):
+        src, dst = currency_code(m.group("from")), currency_code(m.group("to"))
+        if src and dst:
+            amt = m.group("amt") or "1"
+            amount = 1.0 if amt in ("a", "an", "one") else float(amt.replace(",", ""))
+            if amount > 0:
+                return CurrencyCmd(action="currency", amount=amount, from_cur=src, to_cur=dst)
+    if m := _CUR_RATE.match(low):
+        src = currency_code(m.group("from"))
+        dst = currency_code(m.group("to")) if m.group("to") else ("USD" if src == "INR" else "INR")
+        if src and dst:
+            return CurrencyCmd(action="currency", amount=1, from_cur=src, to_cur=dst)
+
+    if m := (_DEFINE.match(low) or _MEANS.match(low)):
+        return DefineCmd(action="define", word=m.group("word").strip()[:40])
+
+    if m := _NEWS.match(t):
+        return NewsCmd(action="news", topic=(m.group("topic") or "").strip()[:80] or None)
+
+    if m := _WA_CALL.match(t):
+        video = any(m.group(g) for g in ("v1", "v2", "v3", "v4"))
+        who = m.group("who").strip(" ,.")
+        if who and _number(who) is None:
+            return WhatsAppCmd(action="whatsapp", contact=who[:60], kind="video_call" if video else "voice_call")
+
+    for rx in (_WA_SEND, _WA_MSG):
+        if m := rx.match(t):
+            who, text = m.group("who").strip(" ,."), m.group("text").strip()
+            if who and text:
+                return WhatsAppCmd(action="whatsapp", contact=who[:60], kind="message", text=text[:500])
+
+    if m := _WA_OPEN.match(t):
+        return WhatsAppCmd(action="whatsapp", contact=m.group("who").strip(" ,.")[:60], kind="open")
+
+    if m := _MEMORY.match(low):
+        p = (m.group("p") or "today").replace("in the ", "").replace("earlier today", "today")
+        period = {"last hour": "last_hour", "this week": "this_week", "so far": "today"}.get(p, p)
+        return MemoryCmd(action="memory", period=period)
 
     if m := _CLICK_ON.match(t):
         target = re.sub(r"^(?:the|a|an) ", "", m.group("target").strip(), flags=re.I).strip()

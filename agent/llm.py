@@ -14,7 +14,7 @@ from typing import Any
 
 import httpx
 
-from skills import air_quality, weather, web_search, websites, wikipedia
+from skills import air_quality, cricket, currency, dictionary, news, weather, web_search, websites, wikipedia
 
 from .apps import APPS
 from .assistant import DIDNT_UNDERSTAND, PlannerError
@@ -44,9 +44,18 @@ Reply with JSON only. Choose "action" from:
 - weather: place (city) or null for the home city. {weather.DESCRIPTION}
 - air_quality: place or null. {air_quality.DESCRIPTION}
 - wiki: topic. {wikipedia.DESCRIPTION}
+- currency: amount, from_cur, to_cur as 3-letter codes (USD, INR, EUR, GBP...). {currency.DESCRIPTION}
+- define: word. {dictionary.DESCRIPTION}
+- news: topic or null for top headlines. {news.DESCRIPTION}
+- cricket: {cricket.DESCRIPTION}
+- whatsapp: contact, kind message/voice_call/video_call/open, text (for messages). Sending and calling
+  always ask the user to approve.
+- memory: period today/yesterday/last_hour/this_week (what the user did with PocketPilot)
 - goto: site = a website name or address. {websites.DESCRIPTION} Known names: {", ".join(sorted(websites.SITES))}
 - search: site bing/google/youtube/amazon/github/chatgpt/spotify, query. {web_search.DESCRIPTION}
 - stop: stop everything
+- task: goal = the whole request, ONLY when it needs several different steps
+  (e.g. open an app and then type in it). Single actions never use task.
 - unknown: say = one short friendly sentence, when nothing above fits or the request is unsafe.
 Rules: never invent apps or actions. Prefer a useful action over unknown: when the user
 describes a need, pick the app or website that fits it. Use an app when one on the list
@@ -63,15 +72,27 @@ Examples:
 "hit the next button" -> {{"action":"click_on","target":"next"}}
 "what is this article about" -> {{"action":"screen","mode":"summarize"}}
 "look at my display and tell me what's there" -> {{"action":"screen","mode":"describe"}}
+"open notepad and write a shopping list" -> {{"action":"task","goal":"open notepad and write a shopping list"}}
 "I want to check my emails" -> {{"action":"goto","site":"gmail"}}
 "find the react repository on github" -> {{"action":"search","site":"github","query":"react"}}
 "is it hot outside in Chennai" -> {{"action":"weather","place":"Chennai"}}
 "who invented the telephone" -> {{"action":"wiki","topic":"invention of the telephone"}}
 "let me solve some programming challenges" -> {{"action":"goto","site":"leetcode"}}
-"I want to draw something" ->{{"action":"open_app","app":"paint"}}
+"I want to draw something" -> {{"action":"open_app","app":"paint"}}
 "open photoshop" -> {{"action":"unknown","say":"I can't open Photoshop. I can open: {", ".join(APPS)}."}}
 "pay my electricity bill" -> {{"action":"unknown","say":"I can't make payments. I can open a search page for you instead."}}
 """
+
+
+PLAN_REQUEST = """PLAN MODE. Do not answer with an action. Split the request below into at most 8 short
+commands, in order. Each command must work on its own when spoken to PocketPilot, for example:
+"open notepad", "type hello world", "press enter", "go to github.com", "click Issues",
+"search youtube for lofi", "scroll down", "new tab", "message amma that I'm coming".
+Only include what the user asked for. Reply as {{"steps": ["...", "..."]}}.
+Request: {goal}"""
+
+STEPS_SHAPE = {"type": "object", "required": ["steps"],
+               "properties": {"steps": {"type": "array", "items": {"type": "string"}, "maxItems": 8}}}
 
 
 def _strip_discriminator(node: Any) -> Any:
@@ -91,7 +112,7 @@ class OllamaPlanner:
         self.client = client or httpx.Client(timeout=httpx.Timeout(timeout, connect=3.0))
         self.schema = _strip_discriminator(command_schema())
 
-    def _body(self, text: str, strict: bool) -> dict:
+    def _body(self, text: str, strict: bool, shape: Any = None, num_predict: int = 160) -> dict:
         body: dict[str, Any] = {
             "model": self.model,
             "messages": [
@@ -100,8 +121,8 @@ class OllamaPlanner:
             ],
             "stream": False,
             "keep_alive": "1h",   # stay in memory for an hour after each use
-            "options": {"temperature": 0, "num_predict": 160},
-            "format": self.schema if strict else "json",
+            "options": {"temperature": 0, "num_predict": num_predict},
+            "format": (shape or self.schema) if strict else "json",
         }
         if strict:
             body["think"] = False   # qwen3: answer straight away, no long reasoning
@@ -118,14 +139,14 @@ class OllamaPlanner:
                 log.warning("AI model not ready: %s", exc)
         threading.Thread(target=run, name="ai-warmup", daemon=True).start()
 
-    def _ask(self, text: str, timeout: float | None = None) -> str:
+    def _ask(self, text: str, timeout: float | None = None, shape: Any = None, num_predict: int = 160) -> str:
         extra = {"timeout": timeout} if timeout else {}
         try:
-            r = self.client.post(self.url, json=self._body(text, strict=True), **extra)
+            r = self.client.post(self.url, json=self._body(text, True, shape, num_predict), **extra)
             if r.status_code == 400:
                 # Older Ollama or a model without "think": retry with plain JSON mode.
                 log.warning("Ollama rejected the strict request (%s); retrying", r.text[:200])
-                r = self.client.post(self.url, json=self._body(text, strict=False), **extra)
+                r = self.client.post(self.url, json=self._body(text, False, shape, num_predict), **extra)
         except httpx.ConnectError as exc:
             raise PlannerError("I can't reach the AI model. Is Ollama running?") from exc
         except httpx.TimeoutException as exc:
@@ -145,3 +166,18 @@ class OllamaPlanner:
             log.warning("model gave an unusable answer %r (%s)", content[:300], exc)
             return UnknownCmd(action="unknown", say=DIDNT_UNDERSTAND)
         return cmd
+
+    def plan_steps(self, goal: str) -> list[str]:
+        """Multi-step request -> short plain commands ("open notepad", "type hello").
+
+        Uses the same instructions as single commands (so Ollama can reuse them)
+        plus a plan request in the user message, with the answer forced into
+        {"steps": [...]}.
+        """
+        content = self._ask(PLAN_REQUEST.format(goal=goal), shape=STEPS_SHAPE, num_predict=240)
+        try:
+            steps = json.loads(content).get("steps", [])
+        except (json.JSONDecodeError, AttributeError):
+            log.warning("model gave an unusable plan %r", content[:300])
+            return []
+        return [str(x).strip()[:200] for x in steps if str(x).strip()][:8]

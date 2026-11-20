@@ -1,0 +1,10 @@
+[project]
+name = "pocketpilot"
+version = "0.1.0"
+description = "Your phone as a touchpad, keyboard and voice remote for your laptop, with a free local AI agent."
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

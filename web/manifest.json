@@ -1,0 +1,13 @@
+{
+  "name": "PocketPilot",
+  "short_name": "PocketPilot",
+  "description": "Your phone as a touchpad, keyboard and voice remote for your laptop.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#070b14",
+  "theme_color": "#070b14",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

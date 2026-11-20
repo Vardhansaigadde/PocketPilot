@@ -44,7 +44,6 @@ SITES: dict[str, str] = {
     "flipkart": "www.flipkart.com",
     "netflix": "www.netflix.com",
     "spotifyweb": "open.spotify.com",
-    "claude": "claude.ai",
     "gemini": "gemini.google.com",
     "kaggle": "www.kaggle.com",
     "coursera": "www.coursera.org",

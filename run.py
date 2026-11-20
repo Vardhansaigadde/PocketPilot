@@ -139,9 +139,9 @@ def build_assistant(controller, args):  # noqa: ANN001, ANN201 - kept simple for
     executor = Executor(controller, Approvals(), skills=skills, grid=TkGrid(),
                         clicker=clicker, screen=explainer,
                         memory=memory, summarize=explainer.summarize_history,
-                        whatsapp=WhatsApp(controller))
+                        whatsapp=WhatsApp(controller, contacts=list(cfg.contacts)))
     planner.warm_up()
-    transcriber = WhisperTranscriber(cfg.whisper_model)
+    transcriber = WhisperTranscriber(cfg.whisper_model, names=cfg.contacts)
     transcriber.preload()
     print(f"  Voice: Whisper {cfg.whisper_model}, AI model {planner.model} (Ollama)"
           + (", laptop mic: say \"Hey Jarvis\"" if not args.no_wake else ""))

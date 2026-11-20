@@ -21,7 +21,7 @@ Zero cost: everything is open source and runs on your own laptop. No cloud accou
 | "news", "news about ISRO" | Top headlines (free key from gnews.io in `.env`) |
 | "cricket score" | Live scores (free key from cricketdata.org in `.env`) |
 
-WhatsApp is driven through its own button names (UI Automation), not by guessing where to click. Before sending or calling it checks that the chat header really is the person you named, and again right before it presses Enter or the call button.
+WhatsApp is driven through its own button names (UI Automation), not by guessing where to click. Put the names you message most in `.env` as `POCKETPILOT_CONTACTS=Amma, Nanna, Kidduuu`: speech-to-text then hears them right, and close mishearings ("Amah") snap to the real name. Common Telugu family names (Amma, Nanna, Akka, Anna...) are known out of the box. Before sending or calling it checks that the chat header really is the person you named, and again right before it presses Enter or the call button.
 
 Multi-step tasks use **plan once, then run simple commands**: the AI turns your request into a short list like "open notepad", "type …", and each step goes through the normal checks (allow-list, blocked apps, Approve). An earlier "look, decide, act" loop was tested and dropped: on a CPU the 4B model took about 15 s per step and lost track of what it had done.
 

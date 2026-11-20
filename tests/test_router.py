@@ -145,3 +145,16 @@ def test_split_steps():
 def test_command_tools_are_always_refused(said):
     cmd = fast_path(said)
     assert cmd.action == "unknown" and "can't open" in cmd.say
+
+
+@pytest.mark.parametrize("said, contact, kind, text", [
+    ("Message kiddu hi", "kiddu", "message", "hi"),
+    ("Send hi to kiddduuu", "kiddduuu", "message", "hi"),
+    ("send good night to amma on whatsapp", "amma", "message", "good night"),
+    ("Call amma in watsapp", "amma", "voice_call", None),
+    ("msg kidduuu how are you", "kidduuu", "message", "how are you"),
+    ("message amma", "amma", "open", None),
+])
+def test_whatsapp_phrasings_from_real_use(said, contact, kind, text):
+    cmd = fast_path(said)
+    assert (cmd.action, cmd.contact, cmd.kind, cmd.text) == ("whatsapp", contact, kind, text)

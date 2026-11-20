@@ -52,11 +52,12 @@ class Ctl(FakeController):
         self.wa.clicked(*self.pos)
 
 
-def make(contacts=("Amma", "Kidduuu 🎀", "Appa"), window=1):
+def make(contacts=("Amma", "Kidduuu 🎀", "Appa"), window=1, contacts_list=None):
     wa = FakeWhatsApp(contacts)
     ctl = Ctl(wa)
-    w = WhatsApp(ctl, controls=wa.controls, window=lambda: window, bring_front=lambda h: None,
-                 start=lambda: None, sleep=lambda s: None)
+    w = WhatsApp(ctl, controls=wa.controls, windows=lambda: [window] if window else [],
+                 bring_front=lambda h: None, start=lambda: None, sleep=lambda s: None, contacts=contacts_list,
+                 front=lambda h: True)
     return w, wa, ctl
 
 
@@ -170,3 +171,64 @@ def test_problems_become_polite_replies():
     ex, wa, ctl = make_ex()
     out = run(ex, {"action": "whatsapp", "contact": "nobody", "kind": "voice_call"})
     assert not out.ok and "couldn't find nobody" in out.say
+
+
+@pytest.mark.parametrize("heard, searched", [("Amah", "Amma"), ("AMMA", "Amma"), ("amma❤️ in watsapp", "Amma"),
+                                             ("kidd u", "Kidduuu"), ("Ravi", "Ravi")])
+def test_contact_names_snap_to_the_contact_list(heard, searched):
+    w, _, _ = make(contacts_list=["Amma", "Kidduuu"])
+    assert w.resolve_contact(heard) == searched
+
+
+def test_call_window_is_skipped():
+    """During a call WhatsApp has a second window; the one with the chat list must be used."""
+    wa = FakeWhatsApp()
+    ctl = Ctl(wa)
+
+    def controls(hwnd):
+        return [] if hwnd == 99 else wa.controls(hwnd)     # 99 = the call window, no search box
+
+    w = WhatsApp(ctl, controls=controls, windows=lambda: [99, 1], bring_front=lambda h: None,
+                 start=lambda: None, sleep=lambda s: None, front=lambda h: True)
+    assert w.open_chat("amma") == "Amma"
+
+
+def test_slow_chat_header_is_waited_for():
+    wa = FakeWhatsApp()
+    ctl = Ctl(wa)
+    late = {"left": 3}
+
+    def controls(hwnd):
+        out = wa.controls(hwnd)
+        if wa.open and late["left"] > 0:                   # header shows up a moment later
+            late["left"] -= 1
+            out = [c for c in out if not c.name.startswith("Contact info")]
+        return out
+
+    w = WhatsApp(ctl, controls=controls, windows=lambda: [1], bring_front=lambda h: None,
+                 start=lambda: None, sleep=lambda s: None, front=lambda h: True)
+    assert w.open_chat("amma") == "Amma"
+
+
+def test_nothing_is_typed_when_whatsapp_is_not_in_front():
+    """Windows can refuse to bring WhatsApp forward; then keys must not go to another window."""
+    wa = FakeWhatsApp()
+    ctl = Ctl(wa)
+    w = WhatsApp(ctl, controls=wa.controls, windows=lambda: [1], bring_front=lambda h: None,
+                 start=lambda: None, sleep=lambda s: None, front=lambda h: False)
+    with pytest.raises(WhatsAppError, match="behind another window"):
+        w.prepare_message("amma", "hello")
+    assert ctl.calls == []                                  # no click, no typing at all
+
+
+def test_whatsapp_falling_behind_midway_stops_before_sending():
+    wa = FakeWhatsApp()
+    ctl = Ctl(wa)
+    in_front = {"yes": True}
+    w = WhatsApp(ctl, controls=wa.controls, windows=lambda: [1], bring_front=lambda h: None,
+                 start=lambda: None, sleep=lambda s: None, front=lambda h: in_front["yes"])
+    ready = w.prepare_message("amma", "hello")
+    in_front["yes"] = False                                 # another window jumps in front
+    with pytest.raises(WhatsAppError):
+        ready.go()
+    assert ("key", "enter") not in ctl.calls

@@ -40,6 +40,7 @@ class Config:
     amazon_domain: str = "www.amazon.in"
     contact: str | None = None        # your GitHub repo URL (Wikipedia asks apps for one)
     gnews_key: str | None = None      # free key from gnews.io (news)
+    contacts: tuple[str, ...] = ()    # WhatsApp names you call/message, to fix mishearings
     cricket_key: str | None = None    # free key from cricketdata.org (cricket scores)
     cloud_fallback: bool = False      # OpenRouter (v4); stays OFF unless turned on
 
@@ -59,6 +60,7 @@ def load_config(env_file: Path | None = None) -> Config:
         amazon_domain=get("POCKETPILOT_AMAZON", Config.amazon_domain) or Config.amazon_domain,
         contact=get("POCKETPILOT_CONTACT"),
         gnews_key=get("POCKETPILOT_GNEWS_KEY"),
+        contacts=tuple(n.strip() for n in (get("POCKETPILOT_CONTACTS", "") or "").split(",") if n.strip()),
         cricket_key=get("POCKETPILOT_CRICKET_KEY"),
         cloud_fallback=(get("POCKETPILOT_CLOUD_FALLBACK", "off") or "off").lower() in ("1", "on", "true", "yes"),
     )

@@ -69,3 +69,10 @@ def test_decode_audio_rejects_garbage():
 
     with pytest.raises(Exception):
         decode_audio(b"definitely not audio")
+
+
+def test_whisper_hint_knows_family_and_contact_names():
+    from agent.stt import build_hint
+
+    hint = build_hint(["Kidduuu"])
+    assert "Amma" in hint and "Kidduuu" in hint and "WhatsApp" in hint

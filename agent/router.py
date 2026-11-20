@@ -186,7 +186,8 @@ _MEMORY = re.compile(
     r"earlier today|so far))?$",
     re.I,
 )
-_ON_WA = r"(?:\s+(?:on|in|over|through|via) (?:whatsapp|whats app|what's app|what sapp))?"
+_WA_WORD = r"(?:whatsapp|whats ?app|what'?s ?app|what sapp|wats ?app|watsapp|whatsap)"
+_ON_WA = r"(?:\s+(?:(?:on|in|over|through|via) )?" + _WA_WORD + ")?"
 # "call amma", "video call amma on whatsapp", "whatsapp call kidduuu"
 _WA_CALL = re.compile(
     r"^(?:(?P<v1>video )?call|ring|phone|make a (?P<v2>video )?call to|whatsapp (?P<v3>video )?call(?: to)?)"
@@ -201,6 +202,12 @@ _WA_MSG = re.compile(
 )
 # "send amma a message saying I'm coming"
 _WA_SEND = re.compile(r"^send (?P<who>.+?) a (?:whatsapp )?message(?: that| saying|:) (?P<text>.+)$", re.I | re.S)
+# "message kiddu hi" (no "that"): the first word is the name
+_WA_MSG_SHORT = re.compile(r"^(?:message|msg|text|whatsapp) (?:to )?(?P<who>[\w'-]+)" + _ON_WA + r"[ ,:.]+(?P<text>.+)$",
+                           re.I | re.S)
+# "send hi to kidduuu", "send good night to amma on whatsapp"
+_WA_SEND_TO = re.compile(r"^send (?P<text>.+?) to (?P<who>[\w'-]+(?: [\w'-]+)?)" + _ON_WA + "$", re.I | re.S)
+_WA_JUST_NAME = re.compile(r"^(?:message|msg|text) (?P<who>[\w'-]+)" + _ON_WA + "$", re.I)
 _WA_OPEN = re.compile(r"^(?:open|show|go to) (?:my |the )?(?:whatsapp )?chat (?:with|of) (?P<who>.+?)" + _ON_WA + "$",
                       re.I)
 # "convert 100 dollars to rupees", "how much is 50 euros in rupees", "dollar to rupee", "dollar rate"
@@ -331,11 +338,15 @@ def fast_path(text: str) -> Command | None:
         if who and _number(who) is None:
             return WhatsAppCmd(action="whatsapp", contact=who[:60], kind="video_call" if video else "voice_call")
 
-    for rx in (_WA_SEND, _WA_MSG):
+    for rx in (_WA_SEND, _WA_MSG, _WA_SEND_TO, _WA_MSG_SHORT):
         if m := rx.match(t):
-            who, text = m.group("who").strip(" ,."), m.group("text").strip()
+            who = re.sub(r"\s+(?:on|in|via|over|through)$", "", m.group("who").strip(" ,."), flags=re.I)
+            text = m.group("text").strip()
             if who and text:
                 return WhatsAppCmd(action="whatsapp", contact=who[:60], kind="message", text=text[:500])
+
+    if m := _WA_JUST_NAME.match(t):                   # "message amma" -> open her chat
+        return WhatsAppCmd(action="whatsapp", contact=m.group("who")[:60], kind="open")
 
     if m := _WA_OPEN.match(t):
         return WhatsAppCmd(action="whatsapp", contact=m.group("who").strip(" ,.")[:60], kind="open")

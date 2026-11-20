@@ -17,6 +17,16 @@ log = logging.getLogger("pocketpilot.stt")
 HINT = ("Open Notepad. Scroll down. Volume up. Click 14. Show grid. "
         "Weather in Hyderabad. Search YouTube for songs. Close the window.")
 
+# Family names Whisper doesn't know ("Amma" came out as "a month", "Amal", "your mom").
+FAMILY = ("Amma", "Nanna", "Appa", "Akka", "Anna", "Chelli", "Thammudu", "Ammamma", "Thatha",
+          "Mama", "Atta", "Babai", "Pinni")
+
+
+def build_hint(names: tuple[str, ...] | list[str] = ()) -> str:
+    """The hint plus WhatsApp-style sentences with the user's contact names."""
+    people = [n for n in (*names, *FAMILY) if n][:20]
+    return HINT + " Call " + ", ".join(people) + " on WhatsApp. Message Amma that I'm coming."
+
 
 SAMPLE_RATE = 16_000
 MAX_SECONDS = 20
@@ -52,9 +62,11 @@ def decode_audio(data: bytes) -> Any:
 
 
 class WhisperTranscriber:
-    def __init__(self, model_size: str = "base.en", threads: int = 4) -> None:
+    def __init__(self, model_size: str = "base.en", threads: int = 4,
+                 names: tuple[str, ...] | list[str] = ()) -> None:
         self.model_size = model_size
         self.threads = threads
+        self.hint = build_hint(names)
         self._model: Any = None
         self._lock = threading.Lock()
 
@@ -90,6 +102,6 @@ class WhisperTranscriber:
         language = "en" if self.model_size.endswith(".en") else None
         segments, _info = model.transcribe(
             source, language=language, beam_size=1, vad_filter=True,
-            initial_prompt=HINT, condition_on_previous_text=False,
+            initial_prompt=self.hint, condition_on_previous_text=False,
         )
         return " ".join(s.text.strip() for s in segments).strip()

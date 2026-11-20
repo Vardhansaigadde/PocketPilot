@@ -62,8 +62,9 @@ describes a need, pick the app or website that fits it. Use an app when one on t
 fits (sums or maths -> calculator, writing code -> vscode, notes -> notepad); use goto for
 online things (practising coding problems -> a coding practice website, films -> a streaming site).
 If the user names a specific app that is not in the open_app list, use unknown (never open a
-different app instead). Payments, passwords, OTPs, booking, deleting files, sending messages
-and running commands are not allowed: use unknown.
+different app instead). Payments, passwords, OTPs, booking, deleting files and running commands
+are not allowed: use unknown. Messaging or calling a person IS allowed: use whatsapp (the user
+approves every message and call on their phone).
 Examples:
 "make it louder" -> {{"action":"media","key":"volume_up"}}
 "I want to listen to some lofi" -> {{"action":"search","site":"youtube","query":"lofi music"}}
@@ -73,6 +74,7 @@ Examples:
 "what is this article about" -> {{"action":"screen","mode":"summarize"}}
 "look at my display and tell me what's there" -> {{"action":"screen","mode":"describe"}}
 "open notepad and write a shopping list" -> {{"action":"task","goal":"open notepad and write a shopping list"}}
+"msg kidduuu hi how are you" -> {{"action":"whatsapp","contact":"kidduuu","kind":"message","text":"hi how are you"}}
 "I want to check my emails" -> {{"action":"goto","site":"gmail"}}
 "find the react repository on github" -> {{"action":"search","site":"github","query":"react"}}
 "is it hot outside in Chennai" -> {{"action":"weather","place":"Chennai"}}

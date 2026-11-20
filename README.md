@@ -24,7 +24,11 @@ Hold the **mic** on the phone and speak, or **slide it right to lock** and talk 
 | "weather", "weather in Hyderabad", "when is sunset" | Open-Meteo forecast |
 | "air quality in Delhi" | AQI + simple advice |
 | "who is APJ Abdul Kalam", "tell me about the Taj Mahal" | Short Wikipedia summary |
-| "search YouTube for lofi", "search Amazon for a wireless mouse" | Opens Edge on the search results |
+| "search YouTube for lofi", "search Amazon for a wireless mouse", "search GitHub for pocketpilot" | Opens Edge on the search results |
+| "go to GitHub", "open ChatGPT", "visit CodeChef", "go to github.com/Vardhansaigadde/PocketPilot" | Opens that website (40 popular sites by name, or any address) |
+| "ask ChatGPT how to reverse a list in Python" | Opens ChatGPT with your question |
+| "new tab", "next tab", "go back", "refresh", "address bar" | Browser shortcuts |
+| "open Edge **then** type github.com **then** press enter" | Runs up to 5 commands in order, waiting for windows to open |
 | "stop" (or the **■** button) | Cancels everything |
 
 Common phrases are matched instantly without AI (about 0.5 s from the phone mic). Anything else ("I want to listen to some lofi") goes to a small AI model running on your laptop through Ollama, which can only answer with one of the actions above.
@@ -125,6 +129,7 @@ Voice: phone mic / text box / "Hey Jarvis" ─► Whisper (speech → text, on t
 - The AI model never runs anything itself: its answer must match the command format exactly, or nothing happens. It can only open apps from a fixed list (no terminal, no PowerShell), and searches only open a results page.
 - Closing a window waits for **Approve** on the phone and cancels itself after 30 seconds.
 - Voice audio is processed on the laptop and never saved. Weather, air quality and Wikipedia are the only things that go to the internet, and they only send the place or topic.
+- Websites always open as `https://` pages. Files, scripts and other kinds of links are refused.
 - Kill switch: the **■** button, saying "stop", or **Ctrl+C** in the terminal.
 
 ## Development

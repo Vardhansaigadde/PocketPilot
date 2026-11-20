@@ -95,6 +95,13 @@ class PynputController:
             "cut": [K.ctrl, "x"],
             "undo": [K.ctrl, "z"],
             "select_all": [K.ctrl, "a"],
+            "new_tab": [K.ctrl, "t"],
+            "next_tab": [K.ctrl, K.tab],
+            "prev_tab": [K.ctrl, K.shift, K.tab],
+            "back": [K.alt, K.left],
+            "forward": [K.alt, K.right],
+            "refresh": [K.f5],
+            "address_bar": [K.ctrl, "l"],
         }
         self._held: set = set()
         self._scroll_rest = [0.0, 0.0]  # leftover fractions of a wheel step

@@ -50,6 +50,19 @@ from agent.router import clean, fast_path
         ("Search for cheap flights to Goa", {"action": "search", "site": "bing", "query": "cheap flights to Goa"}),
         ("Who is APJ Abdul Kalam?", {"action": "wiki", "topic": "APJ Abdul Kalam"}),
         ("tell me about the Taj Mahal", {"action": "wiki", "topic": "Taj Mahal"}),
+        ("go to github", {"action": "goto", "site": "github"}),
+        ("Open ChatGPT.", {"action": "goto", "site": "ChatGPT"}),
+        ("visit codechef", {"action": "goto", "site": "codechef"}),
+        ("open youtube", {"action": "goto", "site": "youtube"}),
+        ("take me to github.com/Vardhansaigadde/PocketPilot",
+         {"action": "goto", "site": "github.com/Vardhansaigadde/PocketPilot"}),
+        ("search github for pocketpilot", {"action": "search", "site": "github", "query": "pocketpilot"}),
+        ("ask ChatGPT how to reverse a list in Python",
+         {"action": "search", "site": "chatgpt", "query": "how to reverse a list in Python"}),
+        ("new tab", {"action": "hotkey", "combo": "new_tab"}),
+        ("go back", {"action": "hotkey", "combo": "back"}),
+        ("refresh the page", {"action": "hotkey", "combo": "refresh"}),
+        ("go to the address bar", {"action": "hotkey", "combo": "address_bar"}),
         ("stop", {"action": "stop"}),
         ("Never mind.", {"action": "stop"}),
     ],
@@ -70,7 +83,6 @@ def test_type_keeps_original_case():
     [
         "",
         "   ",
-        "open youtube",                 # not an app; the AI decides
         "open the thing I used yesterday",
         "click on the login button",    # smart click is v3
         "reply to Ravi that I'm late",
@@ -87,3 +99,21 @@ def test_unknown_phrases_go_to_the_ai(said):
 def test_clean_strips_fillers():
     assert clean("Hey Jarvis, please open notepad for me.") == "open notepad"
     assert clean("  Could you scroll down now?  ") == "scroll down"
+
+
+def test_open_app_wins_over_website():
+    assert fast_path("open notepad").model_dump() == {"action": "open_app", "app": "notepad"}
+
+
+def test_unknown_sites_go_to_the_ai():
+    assert fast_path("go to sleep") is None
+    assert fast_path("take me to my happy place") is None
+
+
+def test_split_steps():
+    from agent.router import split_steps
+
+    assert split_steps("open edge then type github.com and then press enter") == [
+        "open edge", "type github.com", "press enter"]
+    assert split_steps("search youtube for rock and roll") == ["search youtube for rock and roll"]
+    assert len(split_steps(" then ".join(["scroll down"] * 9))) == 5   # at most 5 steps

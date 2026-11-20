@@ -8,9 +8,11 @@ from __future__ import annotations
 
 import re
 
+from skills.websites import resolve as resolve_site
+
 from .apps import find_app
 from .commands import (
-    GRID_CELLS, AirQualityCmd, ClickCmd, CloseWindowCmd, Command, GridClickCmd, GridCmd,
+    GRID_CELLS, AirQualityCmd, ClickCmd, CloseWindowCmd, Command, GoToCmd, GridClickCmd, GridCmd,
     HotkeyCmd, KeyCmd, MediaCmd, OpenAppCmd, ScrollCmd, SearchCmd, StopCmd, TypeCmd,
     WeatherCmd, WikiCmd,
 )
@@ -78,6 +80,16 @@ _simple("close window|close the window|close this window|close this|close it|clo
 _simple("show grid|show the grid|grid|grid on|show numbers", GridCmd(action="grid", show=True))
 _simple("hide grid|hide the grid|grid off|close grid|close the grid|hide numbers",
         GridCmd(action="grid", show=False))
+_simple("new tab|open a new tab|open new tab|open a tab", HotkeyCmd(action="hotkey", combo="new_tab"))
+_simple("next tab|switch tab|switch tabs|go to the next tab", HotkeyCmd(action="hotkey", combo="next_tab"))
+_simple("previous tab|last tab|go to the previous tab", HotkeyCmd(action="hotkey", combo="prev_tab"))
+_simple("go back|back|previous page|go to the previous page|go back a page",
+        HotkeyCmd(action="hotkey", combo="back"))
+_simple("go forward|forward|next page|go forward a page", HotkeyCmd(action="hotkey", combo="forward"))
+_simple("refresh|reload|refresh the page|reload the page|refresh page",
+        HotkeyCmd(action="hotkey", combo="refresh"))
+_simple("address bar|go to the address bar|click the address bar|go to address bar|search bar"
+        "|go to the search bar", HotkeyCmd(action="hotkey", combo="address_bar"))
 _simple("weather|what's the weather|whats the weather|what is the weather|how's the weather"
         "|hows the weather|weather today|is it going to rain|will it rain|sunset"
         "|when is sunset|what time is sunset", WeatherCmd(action="weather"))
@@ -131,7 +143,8 @@ _GRID_CLICK = re.compile(
 # "I want to write some code" or "write an email" and mean something else.
 _TYPE = re.compile(r"^(?:type|type in|type out|enter text)[ :,]+(?P<text>.+)$", re.I | re.S)
 _PRESS = re.compile(r"^(?:press|hit|push)(?: the)? (?P<key>.+?)(?: key| button)?$", re.I)
-_OPEN = re.compile(r"^(?:open|launch|start|run|bring up|go to) (?P<app>.+)$", re.I)
+_OPEN = re.compile(r"^(?:open|launch|start|run|bring up|go to|visit|navigate to|take me to"
+                   r"|browse to|show me) (?P<app>.+)$", re.I)
 _WEATHER = re.compile(
     r"^(?:what(?:'s| is) the |how(?:'s| is) the )?(?:weather|forecast|temperature|sunset)"
     r"(?: like)?(?: today| tomorrow)? (?:in|at|for) (?P<place>.+?)(?: today| tomorrow)?$",
@@ -144,15 +157,20 @@ _AIR = re.compile(
 )
 _SEARCH_ON = re.compile(
     r"^(?:search|find|look up|look for|play|watch)(?: for)? (?P<q>.+?) on "
-    r"(?P<site>youtube|amazon|google|bing)$",
+    r"(?P<site>youtube|amazon|google|bing|github|chatgpt)$",
     re.I,
 )
 _SEARCH_SITE = re.compile(
-    r"^(?:search|find|look up|look for)(?: on)? (?P<site>youtube|amazon|google|bing)"
+    r"^(?:search|find|look up|look for)(?: on)? (?P<site>youtube|amazon|google|bing|github|chatgpt)"
     r"(?: for)? (?P<q>.+)$",
     re.I,
 )
 _SEARCH_SHORT = re.compile(r"^(?P<site>youtube|amazon|google) (?P<q>.+)$", re.I)
+_ASK_CHATGPT = re.compile(r"^(?:ask|tell) (?:chat ?gpt|chat gpt)(?: about| to| for| that)?[ ,:]+(?P<q>.+)$", re.I)
+# "open edge then type github.com then press enter" -> three steps
+_THEN = re.compile(r"\s*,?\s+(?:and then|then|after that|and after that)\s+", re.I)
+MAX_STEPS = 5
+
 _SEARCH = re.compile(r"^(?:search|google|look up|search the web)(?: for)? (?P<q>.+)$", re.I)
 _WIKI = re.compile(
     r"^(?:who is|who was|who are|what is|what are|what was|tell me about|define|explain|wiki"
@@ -192,11 +210,14 @@ def fast_path(text: str) -> Command | None:
         if key:
             return KeyCmd(action="key", key=key)
 
-    if m := _OPEN.match(low):
+    if m := _OPEN.match(t):
         app = find_app(m.group("app"))
         if app:
             return OpenAppCmd(action="open_app", app=app)
-        # e.g. "open youtube": not an app; fall through to search rules / AI
+        site = m.group("app").strip()
+        if resolve_site(site):                       # "go to github", "open codechef.com"
+            return GoToCmd(action="goto", site=site[:200])
+        # not an app or a known website: fall through to search rules / AI
 
     if m := _WEATHER.match(low):
         return WeatherCmd(action="weather", place=m.group("place").strip()[:80])
@@ -204,9 +225,13 @@ def fast_path(text: str) -> Command | None:
     if m := _AIR.match(low):
         return AirQualityCmd(action="air_quality", place=m.group("place").strip()[:80])
 
+    if m := _ASK_CHATGPT.match(t):
+        return SearchCmd(action="search", site="chatgpt", query=m.group("q").strip()[:200])
+
     for rx in (_SEARCH_ON, _SEARCH_SITE, _SEARCH_SHORT):
         if m := rx.match(t):
-            return SearchCmd(action="search", site=m.group("site").lower(),
+            site = m.group("site").lower().replace(" ", "")
+            return SearchCmd(action="search", site=site,
                              query=m.group("q").strip()[:200])
 
     if m := _SEARCH.match(t):
@@ -218,3 +243,9 @@ def fast_path(text: str) -> Command | None:
             return WikiCmd(action="wiki", topic=topic[:100])
 
     return None
+
+
+def split_steps(text: str) -> list[str]:
+    """Split "open edge then type github.com then press enter" into separate commands."""
+    parts = [p.strip(" ,.") for p in _THEN.split(text.strip()) if p.strip(" ,.")]
+    return parts[:MAX_STEPS] if len(parts) > 1 else [text]

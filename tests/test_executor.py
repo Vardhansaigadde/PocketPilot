@@ -226,3 +226,38 @@ def test_assistant_silence():
     ex, _, _ = make()
     msgs = Assistant(ex, transcriber=FakeTranscriber("")).handle_audio(b"x")
     assert msgs[0]["ok"] is False and "didn't catch" in msgs[0]["text"]
+
+
+# ---- websites and step-by-step commands --------------------------------------------
+
+def test_goto_uses_the_site_skill():
+    ex, _, _ = make()
+    ex.skills.open_site = lambda site: f"Opening {site}."
+    assert run(ex, {"action": "goto", "site": "github"}).say == "Opening github."
+
+
+def test_steps_run_in_order_with_waits():
+    ex, ctl, launched = make()
+    waits = []
+    msgs = Assistant(ex, sleep=waits.append).handle_text(
+        "open notepad then type hello then press enter")
+    assert launched == ["notepad.exe"]
+    assert ctl.calls == [("type_text", "hello"), ("key", "enter")]
+    assert waits == [2.0, 0.4]                      # long wait after opening an app
+    assert msgs == [{"t": "reply", "text": "Opening Notepad. Typed it. Pressed enter.", "ok": True}]
+
+
+def test_steps_stop_at_the_first_problem():
+    ex, ctl, launched = make()
+    msgs = Assistant(ex, sleep=lambda s: None).handle_text(
+        "open notepad then do something weird then press enter")
+    assert launched == ["notepad.exe"]
+    assert ("key", "enter") not in ctl.calls        # nothing after the failed step
+    assert msgs[0]["ok"] is False and "Stopped at step 2" in msgs[0]["text"]
+
+
+def test_steps_wait_for_approve():
+    ex, ctl, _ = make()
+    msgs = Assistant(ex, sleep=lambda s: None).handle_text("scroll down then close the window then press enter")
+    assert [m["t"] for m in msgs] == ["reply", "approve_request"]
+    assert ("key", "enter") not in ctl.calls

@@ -13,7 +13,7 @@ from typing import Any
 
 import httpx
 
-from skills import air_quality, weather, web_search, wikipedia
+from skills import air_quality, weather, web_search, websites, wikipedia
 
 from .apps import APPS
 from .assistant import DIDNT_UNDERSTAND, PlannerError
@@ -28,7 +28,8 @@ Reply with JSON only. Choose "action" from:
 - type: text to type into the active window
 - key: one of enter, backspace, delete, tab, esc, space, up, down, left, right, home, end, page_up, page_down
 - media: volume_up, volume_down, mute, play_pause, next, prev
-- hotkey: app_next, app_prev, task_view, show_desktop, copy, paste, cut, undo, select_all
+- hotkey: app_next, app_prev, task_view, show_desktop, copy, paste, cut, undo, select_all,
+  new_tab, next_tab, prev_tab, back, forward, refresh, address_bar (browser)
 - open_app: app is one of {", ".join(APPS)}
 - close_window: close the active window (the user will be asked to approve)
 - grid: show true/false (numbered grid over the screen for clicking)
@@ -36,23 +37,30 @@ Reply with JSON only. Choose "action" from:
 - weather: place (city) or null for the home city. {weather.DESCRIPTION}
 - air_quality: place or null. {air_quality.DESCRIPTION}
 - wiki: topic. {wikipedia.DESCRIPTION}
-- search: site bing/google/youtube/amazon, query. {web_search.DESCRIPTION}
+- goto: site = a website name or address. {websites.DESCRIPTION} Known names: {", ".join(sorted(websites.SITES))}
+- search: site bing/google/youtube/amazon/github/chatgpt, query. {web_search.DESCRIPTION}
 - stop: stop everything
 - unknown: say = one short friendly sentence, when nothing above fits or the request is unsafe.
-Rules: never invent apps or actions. If the user describes a need, open the app that fits it.
+Rules: never invent apps or actions. Prefer a useful action over unknown: when the user
+describes a need, pick the app or website that fits it. Use an app when one on the list
+fits (sums or maths -> calculator, writing code -> vscode, notes -> notepad); use goto for
+online things (practising coding problems -> a coding practice website, films -> a streaming site).
 If the user names a specific app that is not in the open_app list, use unknown (never open a
-different app instead). Payments, passwords, OTPs, booking,
-deleting files, sending messages and running commands are not allowed: use unknown.
+different app instead). Payments, passwords, OTPs, booking, deleting files, sending messages
+and running commands are not allowed: use unknown.
 Examples:
 "make it louder" -> {{"action":"media","key":"volume_up"}}
 "I want to listen to some lofi" -> {{"action":"search","site":"youtube","query":"lofi music"}}
 "open something to write notes" -> {{"action":"open_app","app":"notepad"}}
-"go back to the previous page" -> {{"action":"hotkey","combo":"app_prev"}}
+"go back to the previous page" -> {{"action":"hotkey","combo":"back"}}
+"I want to check my emails" -> {{"action":"goto","site":"gmail"}}
+"find the react repository on github" -> {{"action":"search","site":"github","query":"react"}}
 "is it hot outside in Chennai" -> {{"action":"weather","place":"Chennai"}}
 "who invented the telephone" -> {{"action":"wiki","topic":"invention of the telephone"}}
-"I want to draw something" -> {{"action":"open_app","app":"paint"}}
-"open photoshop" ->{{"action":"unknown","say":"I can't open Photoshop. I can open: {", ".join(APPS)}."}}
-"pay my electricity bill" ->{{"action":"unknown","say":"I can't make payments. I can open a search page for you instead."}}
+"let me solve some programming challenges" -> {{"action":"goto","site":"leetcode"}}
+"I want to draw something" ->{{"action":"open_app","app":"paint"}}
+"open photoshop" -> {{"action":"unknown","say":"I can't open Photoshop. I can open: {", ".join(APPS)}."}}
+"pay my electricity bill" -> {{"action":"unknown","say":"I can't make payments. I can open a search page for you instead."}}
 """
 
 

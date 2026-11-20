@@ -17,7 +17,7 @@ from server.input_control import Controller
 from . import apps
 from .approvals import Approvals, Pending
 from .commands import (
-    GRID_CELLS, AirQualityCmd, ClickCmd, CloseWindowCmd, Command, GridClickCmd, GridCmd,
+    GRID_CELLS, AirQualityCmd, ClickCmd, CloseWindowCmd, Command, GoToCmd, GridClickCmd, GridCmd,
     HotkeyCmd, KeyCmd, MediaCmd, OpenAppCmd, ScrollCmd, SearchCmd, StopCmd, TypeCmd,
     UnknownCmd, WeatherCmd, WikiCmd,
 )
@@ -32,6 +32,7 @@ class Skills(Protocol):
     def air_quality(self, place: str | None) -> str: ...
     def wiki(self, topic: str) -> str: ...
     def search(self, site: str, query: str) -> str: ...
+    def open_site(self, site: str) -> str: ...
 
 
 class Grid(Protocol):
@@ -55,6 +56,9 @@ _SAY_HOTKEY = {
     "app_next": "Switched app.", "app_prev": "Switched back.", "task_view": "Showing all windows.",
     "show_desktop": "Showing the desktop.", "copy": "Copied.", "paste": "Pasted.", "cut": "Cut.",
     "undo": "Undone.", "select_all": "Selected all.",
+    "new_tab": "New tab.", "next_tab": "Next tab.", "prev_tab": "Previous tab.",
+    "back": "Going back.", "forward": "Going forward.", "refresh": "Refreshing.",
+    "address_bar": "Address bar. Say type and the address.",
 }
 
 
@@ -131,7 +135,7 @@ class Executor:
             self.ctl.move_to(x, y)
             self.ctl.click(cmd.button, cmd.count)
             return Outcome(f"Clicked {cmd.cell}.")
-        if isinstance(cmd, (WeatherCmd, AirQualityCmd, WikiCmd, SearchCmd)):
+        if isinstance(cmd, (WeatherCmd, AirQualityCmd, WikiCmd, SearchCmd, GoToCmd)):
             if self.skills is None:
                 return Outcome("That skill isn't available.", ok=False)
             if isinstance(cmd, WeatherCmd):
@@ -140,6 +144,8 @@ class Executor:
                 return Outcome(self.skills.air_quality(cmd.place))
             if isinstance(cmd, WikiCmd):
                 return Outcome(self.skills.wiki(cmd.topic))
+            if isinstance(cmd, GoToCmd):
+                return Outcome(self.skills.open_site(cmd.site))
             return Outcome(self.skills.search(cmd.site, cmd.query))
         if isinstance(cmd, UnknownCmd):
             return Outcome(cmd.say, ok=False)

@@ -93,9 +93,15 @@ class WikiCmd(_Cmd):
     topic: str = Field(min_length=1, max_length=100)
 
 
+class GoToCmd(_Cmd):
+    """Open a website by name ("github") or address ("github.com/user/repo")."""
+    action: Literal["goto"]
+    site: str = Field(min_length=1, max_length=200)
+
+
 class SearchCmd(_Cmd):
     action: Literal["search"]
-    site: Literal["bing", "google", "youtube", "amazon"] = "bing"
+    site: Literal["bing", "google", "youtube", "amazon", "github", "chatgpt"] = "bing"
     query: str = Field(min_length=1, max_length=200)
 
 
@@ -113,7 +119,7 @@ Command = Annotated[
     Union[
         ScrollCmd, ClickCmd, TypeCmd, KeyCmd, MediaCmd, HotkeyCmd, OpenAppCmd,
         CloseWindowCmd, GridCmd, GridClickCmd, WeatherCmd, AirQualityCmd, WikiCmd,
-        SearchCmd, StopCmd, UnknownCmd,
+        GoToCmd, SearchCmd, StopCmd, UnknownCmd,
     ],
     Field(discriminator="action"),
 ]

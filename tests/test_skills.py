@@ -124,3 +124,22 @@ def test_search_url_cannot_be_redirected():
 def test_open_in_edge_refuses_non_https():
     with pytest.raises(ValueError):
         open_in_edge("file:///C:/Windows/System32/cmd.exe")
+
+
+def test_open_site_opens_https_url():
+    s, opened = skills({})
+    assert s.open_site("codechef") == "Opening CodeChef."
+    assert opened == ["https://www.codechef.com"]
+
+
+def test_open_unknown_site_opens_nothing():
+    s, opened = skills({})
+    assert "don't know the website" in s.open_site("my happy place")
+    assert opened == []
+
+
+def test_github_and_chatgpt_search():
+    s, opened = skills({})
+    s.search("github", "pocket pilot")
+    assert s.search("chatgpt", "what is 2+2") == "Asking ChatGPT: what is 2+2"
+    assert opened == ["https://github.com/search?q=pocket+pilot", "https://chatgpt.com/?q=what+is+2%2B2"]

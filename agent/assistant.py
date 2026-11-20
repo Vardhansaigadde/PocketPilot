@@ -9,15 +9,20 @@ from __future__ import annotations
 
 import logging
 import threading
-from typing import Any, Protocol
+import time
+from typing import Any, Callable, Protocol
 
-from .commands import Command, UnknownCmd
+from .commands import Command, GoToCmd, OpenAppCmd, SearchCmd, UnknownCmd
 from .executor import Executor, Outcome
-from .router import fast_path
+from .router import fast_path, split_steps
 
 log = logging.getLogger("pocketpilot.assistant")
 
 DIDNT_UNDERSTAND = "Sorry, I didn't understand. Try: open notepad, scroll down, weather."
+
+# Pause after a step that opens a window, so the next step (e.g. typing) lands in it.
+WAIT_AFTER_OPEN_S = 2.0
+WAIT_BETWEEN_S = 0.4
 
 
 class Planner(Protocol):
@@ -51,10 +56,12 @@ class Assistant:
         executor: Executor,
         planner: Planner | None = None,
         transcriber: Transcriber | None = None,
+        sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         self.executor = executor
         self.planner = planner
         self.transcriber = transcriber
+        self.sleep = sleep
         self._busy = threading.Lock()
 
     # -- entry points (called from a worker thread) ---------------------------
@@ -100,9 +107,36 @@ class Assistant:
         return self.planner.to_command(text)
 
     def _handle_text(self, text: str) -> list[dict]:
+        steps = split_steps(text)
+        if len(steps) > 1:
+            return self._handle_steps(steps)
         try:
             cmd = self.to_command(text)
         except PlannerError as exc:
             return [reply(str(exc), ok=False)]
         log.info("%r -> %r", text, cmd)
         return _outcome_messages(self.executor.run(cmd))
+
+    def _handle_steps(self, steps: list[str]) -> list[dict]:
+        """Run "open edge then type github.com then press enter" one step at a time.
+
+        Stops at the first step that fails or needs Approve on the phone.
+        """
+        said: list[str] = []
+        for i, step in enumerate(steps, 1):
+            try:
+                cmd = self.to_command(step)
+            except PlannerError as exc:
+                return [reply(f"Step {i} ({step}): {exc}", ok=False)]
+            log.info("step %d %r -> %r", i, step, cmd)
+            out = self.executor.run(cmd)
+            if not out.ok:
+                done = " ".join(said)
+                return [reply(f"{done} Stopped at step {i} ({step}): {out.say}".strip(), ok=False)]
+            said.append(out.say)
+            if out.approval is not None:      # e.g. close window: wait for the phone
+                return [reply(" ".join(said)), *_outcome_messages(out)[1:]]
+            if i < len(steps):
+                opens = isinstance(cmd, (OpenAppCmd, GoToCmd, SearchCmd))
+                self.sleep(WAIT_AFTER_OPEN_S if opens else WAIT_BETWEEN_S)
+        return [reply(" ".join(said))]

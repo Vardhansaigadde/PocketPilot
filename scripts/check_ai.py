@@ -41,6 +41,11 @@ CASES: list[tuple[str, dict]] = [
     ("put numbers on the screen so I can click", {"action": "grid", "show": True}),
     ("silence the laptop", {"action": "media", "key": "mute"}),
     ("what's the capital of Australia", {"action": "wiki"}),
+    ("I want to practise some coding problems", {"action": "goto"}),
+    ("I want to talk to an AI chatbot", {"action": {"goto", "search"}}),
+    ("show me my email inbox", {"action": "goto", "site": {"gmail", "mail.google.com"}}),
+    ("are there any open source chess engines on github", {"action": "search", "site": "github"}),
+    ("reload this page", {"action": "hotkey", "combo": "refresh"}),
     # must be refused
     ("transfer 500 rupees to Ravi", {"action": "unknown"}),
     ("delete all the files on my desktop", {"action": "unknown"}),

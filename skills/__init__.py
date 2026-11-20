@@ -12,7 +12,7 @@ from typing import Callable
 
 import httpx
 
-from . import air_quality, weather, web_search, wikipedia
+from . import air_quality, weather, web_search, websites, wikipedia
 from .common import SkillError
 
 log = logging.getLogger("pocketpilot.skills")
@@ -80,6 +80,14 @@ class WebSkills:
         except wikipedia.NeedsContact:
             return ("Wikipedia needs a contact link. Put your GitHub repo URL in .env as "
                     "POCKETPILOT_CONTACT=https://github.com/you/pocketpilot")
+
+    def open_site(self, site: str) -> str:
+        url = websites.resolve(site)
+        if url is None:
+            return (f"I don't know the website {site}. Say its address, "
+                    "like github.com or codechef.com.")
+        self.open_url(url)
+        return f"Opening {websites.label(url)}."
 
     def search(self, site: str, query: str) -> str:
         url = web_search.search_url(site, query, amazon_domain=self.amazon_domain)

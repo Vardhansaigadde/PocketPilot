@@ -33,6 +33,17 @@ Start with `python run.py`, open PocketPilot on the phone, and have Notepad or a
 | 24 | search YouTube for lofi music | Edge opens YouTube results | ☐ | ☐ | |
 | 25 | I want to do some maths | AI (Ollama) opens Calculator | ☐ | ☐ | needs Ollama |
 
+Bonus: websites and browser (not required for v2 to be done)
+
+| Say | Expected | Phone | Laptop |
+|-----|----------|:-----:|:------:|
+| go to github | Edge opens github.com | ☐ | ☐ |
+| open chatgpt | Edge opens chatgpt.com | ☐ | ☐ |
+| go to github.com slash Vardhansaigadde slash PocketPilot | Your repo opens | ☐ | ☐ |
+| search github for pocketpilot | GitHub search results | ☐ | ☐ |
+| new tab, then go back, then refresh | Each browser key works | ☐ | ☐ |
+| open notepad then type hello then press enter | Notepad opens, types, new line | ☐ | ☐ |
+
 Also check:
 - [ ] "stop" and the ■ button cancel an Approve card and hide the grid.
 - [ ] The touchpad stays smooth while a voice command is being worked out.

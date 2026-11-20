@@ -27,6 +27,14 @@ HOTKEYS = Literal[
     "task_view",     # Win+Tab
     "show_desktop",  # Win+D
     "copy", "paste", "cut", "undo", "select_all",
+    # browser
+    "new_tab",       # Ctrl+T
+    "next_tab",      # Ctrl+Tab
+    "prev_tab",      # Ctrl+Shift+Tab
+    "back",          # Alt+Left
+    "forward",       # Alt+Right
+    "refresh",       # F5
+    "address_bar",   # Ctrl+L
 ]
 
 MEDIA = Literal["volume_up", "volume_down", "mute", "play_pause", "next", "prev"]

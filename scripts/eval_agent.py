@@ -106,10 +106,14 @@ def main() -> int:
             secs.append(time.perf_counter() - t0)
             ok_runs += worked
             print(f"{'PASS' if worked else 'FAIL'} {secs[-1]:5.1f}s  {task.said!r}: {reply.get('text', '')[:80]}")
-            if task.cleanup == "close_window":
+            # Only clean up if the window we opened is really in front; never send keys blind.
+            front = active_title().replace("​", "").lower()
+            if task.cleanup == "close_window" and ("notepad" in front or front == "calculator"):
                 ctl.close_window()
-            elif task.cleanup == "close_tab":
+            elif task.cleanup == "close_tab" and front.endswith("microsoft edge"):
                 _close_tab()
+            elif task.cleanup:
+                print(f"      (skipped cleanup: '{active_title()[:40]}' is in front, not the window we opened)")
             time.sleep(1.5)
         rows.append((task.said, ok_runs, args.runs, sum(secs) / len(secs)))
 

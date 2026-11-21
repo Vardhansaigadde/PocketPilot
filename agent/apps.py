@@ -50,6 +50,26 @@ ALIASES: dict[str, str] = {
     "webcam": "camera", "camera app": "camera",
 }
 
+def _ends(*names: str):
+    return lambda t: t.replace("​", "").lower().strip().endswith(names)
+
+
+def _is(*names: str):
+    return lambda t: t.replace("​", "").lower().strip() in names
+
+
+# How to recognise each app's window by its title (to bring it to the front after opening).
+WINDOW_TITLES = {
+    "chrome.exe": _ends("google chrome"), "msedge.exe": _ends("microsoft edge"),
+    "notepad.exe": _ends("notepad"), "calculator:": _is("calculator"),
+    "explorer.exe": _ends("file explorer"), "ms-settings:": _is("settings"),
+    "whatsapp:": lambda t: t.lower().endswith("whatsapp"), "spotify:": lambda t: "spotify" in t.lower(),
+    "vscode:": _ends("visual studio code"), "mspaint.exe": _ends("paint"),
+    "winword.exe": _ends("word"), "excel.exe": _ends("excel"), "powerpnt.exe": _ends("powerpoint"),
+    "microsoft.windows.camera:": _is("camera"),
+}
+
+
 # If the app isn't installed, open its website instead.
 WEB_FALLBACK: dict[str, str] = {
     "spotify": "https://open.spotify.com",

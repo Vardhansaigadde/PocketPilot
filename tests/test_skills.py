@@ -157,3 +157,11 @@ def test_spotify_search_uses_the_app_when_installed():
                   app_available=lambda target: target == "spotify:")
     s.search("spotify", "arijit singh & friends")
     assert links == ["spotify:search:arijit%20singh%20%26%20friends"] and opened == []
+
+
+def test_hidden_window_is_reported():
+    s = WebSkills(fake_internet({}), lambda url: False)          # Edge couldn't come to the front
+    assert "behind a Windows notification" in s.open_site("github")
+    assert "behind a Windows notification" in s.search("youtube", "lofi")
+    s = WebSkills(fake_internet({}), lambda url: True)
+    assert s.open_site("github") == "Opening GitHub."

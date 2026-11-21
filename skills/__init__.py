@@ -17,6 +17,8 @@ from .common import SkillError
 
 log = logging.getLogger("pocketpilot.skills")
 
+BEHIND = ("It opened behind a Windows notification or another window; close the notification (or plug in if it's the low-battery warning) to see it.")
+
 USER_AGENT = "PocketPilot/0.2"
 
 
@@ -107,13 +109,13 @@ class WebSkills:
         if url is None:
             return (f"I don't know the website {site}. Say its address, "
                     "like github.com or codechef.com.")
-        self.open_url(url)
-        return f"Opening {websites.label(url)}."
+        shown = self.open_url(url)
+        return f"Opening {websites.label(url)}." + ("" if shown is not False else " " + BEHIND)
 
     def search(self, site: str, query: str) -> str:
         if site == "spotify" and self.open_app_link and self.app_available("spotify:"):
             self.open_app_link(web_search.spotify_app_link(query))   # Spotify app installed
             return web_search.spoken(site, query)
         url = web_search.search_url(site, query, amazon_domain=self.amazon_domain)
-        self.open_url(url)
-        return web_search.spoken(site, query)
+        shown = self.open_url(url)
+        return web_search.spoken(site, query) + ("" if shown is not False else " " + BEHIND)

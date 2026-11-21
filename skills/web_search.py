@@ -52,10 +52,14 @@ def spotify_app_link(query: str) -> str:
     return "spotify:search:" + quote(SearchInput(site="spotify", query=query).query.strip(), safe="")
 
 
-def open_in_edge(url: str) -> None:
+def open_in_edge(url: str) -> bool:
     """Open a URL in Microsoft Edge (Windows). Only https URLs built above are allowed."""
     import os
 
     if not url.startswith("https://"):
         raise ValueError("only https search URLs can be opened")
     os.startfile("microsoft-edge:" + url)  # type: ignore[attr-defined]
+    # Windows opens Edge behind other windows when a background program asks: bring it forward.
+    from agent.windows import bring_front, is_edge
+
+    return bring_front(is_edge)

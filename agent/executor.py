@@ -122,9 +122,16 @@ _SAY_HOTKEY = {
 }
 
 
-def start_app(target: str) -> None:
-    """Start a known app target with Windows (only ever called with targets from apps.APPS)."""
+def start_app(target: str) -> bool | None:
+    """Start a known app target with Windows (only ever called with targets from apps.APPS),
+    then bring its window to the front (Windows keeps it behind otherwise)."""
     os.startfile(target)  # type: ignore[attr-defined]  # Windows only
+    match = apps.WINDOW_TITLES.get(target)
+    if match is not None:
+        from .windows import bring_front
+
+        return bring_front(match)
+    return None
 
 
 class Executor:
@@ -195,7 +202,10 @@ class Executor:
             if web and self.skills is not None and not self.app_available(target):
                 self.skills.open_site(web)
                 return Outcome(f"The {label} app isn't installed, so I opened {label} on the web.")
-            self.launch(target)
+            shown = self.launch(target)
+            if shown is False:
+                from skills import BEHIND
+                return Outcome(f"Opening {label}. {BEHIND}")
             return Outcome(f"Opening {label}.")
         if isinstance(cmd, CloseWindowCmd):
             def close() -> str:

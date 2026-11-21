@@ -210,9 +210,18 @@ Voice: phone mic / text box / "Hey Jarvis" ─► Whisper (speech → text, on t
 
 Real tasks run end to end on a CPU-only laptop (Intel i5-12450H, 16 GB RAM, no GPU), 3 runs each, with `python scripts/eval_agent.py`:
 
-**22 / 24 tasks succeeded (92%)**: Notepad typing, Calculator sums planned by the local AI, opening websites and searches, currency and dictionary answers. Full table: [docs/eval.md](docs/eval.md).
+**54 / 57 tasks succeeded (95%)**
 
-The two misses were browser runs where another window took the focus back as Edge opened; PocketPilot now says in its reply when a page opens behind something. The local AI also scores 28/28 on open-ended phrases (`scripts/check_ai.py`).
+| Group | Tasks | Success |
+| --- | --- | --- |
+| English | Notepad typing, Calculator sums planned by the local AI, websites, searches, currency, dictionary | 24/24 |
+| WhatsApp | message and call Amma (stops at the Approve card, which the eval cancels), "Did you mean Kidduuu?" | 9/9 |
+| Telugu | open Notepad, YouTube songs, Hyderabad weather, call / message Amma, in Telugu script and Tenglish | 15/15 |
+| Screen | open the first search result, close a tab, play the second video | 6/9 |
+
+Full table with times: [docs/eval.md](docs/eval.md). Nothing is sent, called, bought or deleted during the eval.
+
+The three misses were all "play the second video": YouTube puts ads between results, and in those runs only one real video was on screen, so PocketPilot said "I can only see 1 video" instead of clicking a guess. The local AI also scores 28/28 on open-ended phrases (`scripts/check_ai.py`).
 
 ## Development
 

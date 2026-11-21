@@ -45,6 +45,22 @@ If the phone speaks Telugu with an English accent or not at all: Android Setting
 | 21 | Tap **తె** → **EN**, say "scroll down" | English speech model, English reply | ☐ |
 | 22 | Say "hey jarvis" to the laptop with **తె** on | The laptop mic listens in Telugu too | ☐ |
 
+## Added during v5 (English unless shown)
+
+| # | Say | Expected | ✓ |
+|---|-----|----------|:-:|
+| 23 | అక్కకి హాయ్ అని మెసేజ్ పెట్టు | Opens **Akka 💝 🥰** (not Vinitha Akka); Approve card; **Cancel** | ☐ |
+| 24 | message kitya hi | "I couldn't find Kitya. Did you mean 1) Kidduuu 🎀?" → say "one" → Approve card; **Cancel** | ☐ |
+| 25 | call a month | Tries Amma → Approve card for Amma; **Cancel** | ☐ |
+| 26 | open grid hub | Opens GitHub | ☐ |
+| 27 | play dude in spotify | Spotify search for "dude" | ☐ |
+| 28 | search youtube for kesariya → scroll a little → play the second video | Plays the 2nd video **you can see** | ☐ |
+| 29 | రెండో వీడియో ప్లే చెయ్యి (on a YouTube results page) | Plays the 2nd visible video; Telugu reply | ☐ |
+| 30 | (Bing results, scrolled to real results) open the first result | Opens the first real result, not an ad or the Copilot box | ☐ |
+| 31 | (browser in front) search for cricket score | Opens in a **new tab of that browser** | ☐ |
+| 32 | close this tab → reopen closed tab | Tab closes, then comes back | ☐ |
+| 33 | (File Explorer in front) close this tab | Refuses: "no tabs I can close" | ☐ |
+
 Measured on this laptop (CPU, int8): pure Telugu clips 2–10 % character errors, 3–5 s for
 6–10 s of speech. English words said inside Telugu come out in Telugu script (స్క్రోల్ డౌన్);
 the common ones are mapped back to English, others go to the AI.

@@ -4,7 +4,7 @@
 
 Zero cost: everything is open source and runs on your own laptop. No cloud account needed.
 
-> Status: **v1 (touchpad) and v2 (voice commands) work**, tested on a real phone with the [25-command checklist](docs/v2-commands.md). **v3 (smart click + screen explainer) works** too ([v3 checklist](docs/v3-tests.md)). **v4 (WhatsApp messages and calls, multi-step tasks, memory, more skills) works** too ([v4 checklist](docs/v4-tests.md)). **v5 (Telugu voice and Telugu replies) is built**, phone test next ([v5 checklist](docs/v5-tests.md)). See the [roadmap](#roadmap).
+> Status: **v1 (touchpad) and v2 (voice commands) work**, tested on a real phone with the [25-command checklist](docs/v2-commands.md). **v3 (smart click + screen explainer) works** too ([v3 checklist](docs/v3-tests.md)). **v4 (WhatsApp messages and calls, multi-step tasks, memory, more skills) works** too ([v4 checklist](docs/v4-tests.md)). **v5 (Telugu voice and Telugu replies) works** too ([v5 checklist](docs/v5-tests.md)). Next: launch. See the [roadmap](#roadmap).
 
 <!-- Add a demo GIF here once recorded: docs/demo-v1.gif -->
 
@@ -239,7 +239,7 @@ It prints which command the model picks for each phrase, how long it took, and t
 | **v2 Voice commands** ✅ | Phone mic + "Hey Jarvis" on the laptop ("Hey Pilot" later); open apps, weather, Edge/YouTube search, grid clicking |
 | **v3 Smart click + screen explainer** ✅ | "Click the Login button", "summarize this page", "explain this error" |
 | **v4 Task agent** ✅ | Multi-step tasks, WhatsApp messages **and calls** with Approve, memory of what you did, currency/dictionary/news/cricket |
-| **v5 Telugu** (built) | Telugu and Telugu–English voice commands, Telugu replies |
+| **v5 Telugu** ✅ | Telugu and Telugu–English voice commands, Telugu replies |
 | v6 Android app | Native app with haptics and a Wake-on-LAN button |
 | v7 Macros + MCP | "Watch me once" skills, MCP server for other AI apps |
 

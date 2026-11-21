@@ -30,7 +30,7 @@ Speak into the phone (mic button) or to the laptop ("Hey Pilot" wake word).
 - Eval script: 20 tasks × 3 runs → success rate table for README.
 - Done when: 5 multi-step tasks finish end to end; no message is ever sent without Approve.
 
-## v5 — Telugu voice + Telugu replies (built; phone test with `docs/v5-tests.md`)
+## v5 — Telugu voice + Telugu replies ✅ (done, phone-tested with `docs/v5-tests.md`; + did-you-mean names, nth result/video, tabs)
 - Telugu speech-to-text: IIT Madras' Telugu Whisper-small, already converted for faster-whisper
   (`ukta-app/whisper-telugu-ct2`, 250 MB, Apache-2.0; WER 11.6 % on FLEURS Telugu). Chosen over
   AI4Bharat IndicConformer (2.5 GB, gated). Loaded the first time Telugu is used.

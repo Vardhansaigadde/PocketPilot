@@ -151,3 +151,20 @@ def test_telugu_reply():
     from agent.telugu import reply
 
     assert reply('Opening the 2nd video: "Kesariya".') == '2వ వీడియో తెరుస్తున్నాను: "Kesariya".'
+
+
+def test_browser_page_that_is_still_waking_up_is_read_again():
+    class WakingClicker(FakeClicker):
+        def __init__(self):
+            super().__init__(YOUTUBE, "kesariya - YouTube - Personal - Microsoft Edge")
+            self.reads = 0
+
+        def controls(self):
+            self.reads += 1
+            return [] if self.reads == 1 else self.cands       # 1st read: only the toolbar
+
+    ctl, clicker = FakeController(), WakingClicker()
+    ex = Executor(ctl, Approvals(), clicker=clicker, launcher=lambda t: None, app_available=lambda t: True,
+                  sleep=lambda s: None)
+    out = ex.run(OpenResultCmd(action="open_result", n=1, kind="video"))
+    assert out.ok and clicker.reads == 2

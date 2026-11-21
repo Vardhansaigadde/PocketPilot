@@ -124,6 +124,8 @@ _SAY_MEDIA = {
     "volume_up": "Volume up.", "volume_down": "Volume down.", "mute": "Toggled mute.",
     "play_pause": "Play / pause.", "next": "Next track.", "prev": "Previous track.",
 }
+RESULT_RETRIES = 4         # re-reads of a browser page that showed nothing yet (~3 s)
+
 _SAY_HOTKEY = {
     "app_next": "Switched app.", "app_prev": "Switched back.", "task_view": "Showing all windows.",
     "show_desktop": "Showing the desktop.", "copy": "Copied.", "paste": "Pasted.", "cut": "Cut.",
@@ -446,6 +448,13 @@ class Executor:
             return Outcome("Smart click isn't available. Say show grid instead.", ok=False)
         title = self.clicker.window_title()
         hit, count = pick(self.clicker.controls(), cmd.n, cmd.kind, title)
+        # Chromium (Edge, Chrome) shows the page to UI Automation only after the first request:
+        # the first read can be just the toolbar. Ask again a few times before giving up.
+        for _ in range(RESULT_RETRIES if count == 0 and windows.is_browser(title) else 0):
+            self.sleep(0.7)
+            hit, count = pick(self.clicker.controls(), cmd.n, cmd.kind, title)
+            if count:
+                break
         what = "video" if cmd.kind == "video" or "youtube" in title.lower() else "result"
         if hit is None:
             if count == 0:

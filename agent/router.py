@@ -16,7 +16,7 @@ from .apps import app_list_text, find_app
 from .commands import (
     GRID_CELLS, CricketCmd, CurrencyCmd, DefineCmd, NewsCmd, UnknownCmd, AirQualityCmd, ClickCmd, CloseWindowCmd, Command, GoToCmd, GridClickCmd, GridCmd,
     ForgetCmd, GridZoomCmd, HotkeyCmd, KeepAwakeCmd, KeyCmd, MemoryCmd, WakeScreenCmd, MediaCmd, OpenAppCmd, ScreenCmd, ScrollCmd, SearchCmd, SmartClickCmd, StopCmd,
-    TypeCmd, WhatsAppCmd,
+    OpenResultCmd, TypeCmd, WhatsAppCmd,
     WeatherCmd, WikiCmd,
 )
 
@@ -298,6 +298,39 @@ _WIKI = re.compile(
 )
 
 
+# "play the second video", "open the first result", "click the 3rd link", "open video number 2"
+_ORD_WORDS = {"first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5, "sixth": 6, "seventh": 7,
+              "eighth": 8, "ninth": 9, "tenth": 10, "last": -1, "1st": 1, "2nd": 2, "3rd": 3}
+_ORD = r"(?P<ord>first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|last|\d{1,2}(?:st|nd|rd|th))"
+_RESULT_KIND = r"(?P<kind>search result|result|video|song|link|website|site|web ?page|page|option|one)"
+_RESULT_VERB = r"(?:(?:open|click|click on|tap|tap on|play|watch|select|choose|go to|start|show me|put on) )?"
+_RESULT_WHERE = r"(?: (?:on|in|from|of) (?:the |this )?(?:screen|page|list|results|search|youtube|google|bing))?"
+_NTH_RESULT = re.compile(r"^" + _RESULT_VERB + r"(?:the )?" + _ORD + r" " + _RESULT_KIND + _RESULT_WHERE + r"$", re.I)
+_RESULT_NUMBER = re.compile(
+    r"^" + _RESULT_VERB + r"(?:the )?(?P<kind>search result|result|video|song|link|website|site)"
+    r" (?:number |no\.? |#)?(?P<n>\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten)" + _RESULT_WHERE + r"$",
+    re.I,
+)
+
+
+def _result_cmd(low: str) -> OpenResultCmd | None:
+    m = _NTH_RESULT.match(low) or _RESULT_NUMBER.match(low)
+    if not m:
+        return None
+    if "ord" in m.groupdict() and m.group("ord") is not None:
+        word = m.group("ord").lower()
+        n = _ORD_WORDS.get(word) or int(re.sub(r"\D", "", word))
+    else:
+        n = _number(m.group("n"))
+    if not n or n > 20:
+        return None
+    kind = m.group("kind").lower()
+    if kind == "one" and not re.match(r"^(?:open|click|play|watch|select|choose|tap)", low):
+        return None                                   # "the second one" alone is a "which one?" answer
+    kind = "video" if kind in ("video", "song") else "link" if kind == "link" else "result"
+    return OpenResultCmd(action="open_result", n=n, kind=kind)
+
+
 def fast_path(text: str) -> Command | None:
     """Return a Command for a known phrase, or None to let the AI handle it."""
     t = clean(text)
@@ -325,6 +358,9 @@ def fast_path(text: str) -> Command | None:
                 button="right" if kind == "right click" else "left",
                 count=2 if kind.startswith("double") else 1,
             )
+
+    if cmd := _result_cmd(low):                       # before smart click: "click the second video"
+        return cmd
 
     if m := _TYPE.match(t):  # original case kept for what gets typed
         return TypeCmd(action="type", text=spoken_math(m.group("text").strip())[:500])

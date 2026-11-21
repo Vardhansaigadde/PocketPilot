@@ -39,6 +39,7 @@ Reply with JSON only. Choose "action" from:
 - grid_click: cell 1-{GRID_CELLS}, button, count
 - grid_zoom: cell (split that grid box into 9 smaller boxes)
 - click_on: target = the name of a button, link or tab on screen, button, count
+- open_result: n = which search result or video on screen (1 = first, -1 = last), kind = result | video | link
 - screen: mode describe (what's on screen, what am I doing/looking at) / summarize (what a page or article
   says) / explain_error / read (read the text aloud)
 - weather: place (city) or null for the home city. {weather.DESCRIPTION}
@@ -73,6 +74,7 @@ Examples:
 "open something to write notes" -> {{"action":"open_app","app":"notepad"}}
 "go back to the previous page" -> {{"action":"hotkey","combo":"back"}}
 "hit the next button" -> {{"action":"click_on","target":"next"}}
+"play the third video" -> {{"action":"open_result","n":3,"kind":"video"}}
 "what is this article about" -> {{"action":"screen","mode":"summarize"}}
 "look at my display and tell me what's there" -> {{"action":"screen","mode":"describe"}}
 "open notepad and write a shopping list" -> {{"action":"task","goal":"open notepad and write a shopping list"}}

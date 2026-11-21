@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal, Union
 
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError, field_validator
 
 from server.protocol import HOTKEYS, KEYS, MEDIA
 
@@ -90,6 +90,20 @@ class SmartClickCmd(_Cmd):
     target: str = Field(min_length=1, max_length=80)
     button: Literal["left", "right"] = "left"
     count: int = Field(default=1, ge=1, le=2)
+
+
+class OpenResultCmd(_Cmd):
+    """Open the nth search result or video on screen ("play the second video")."""
+    action: Literal["open_result"]
+    n: int = Field(ge=-1, le=20)                     # 1 = first, -1 = last
+    kind: Literal["result", "video", "link"] = "result"
+
+    @field_validator("n")
+    @classmethod
+    def _not_zero(cls, v: int) -> int:
+        if v == 0:
+            raise ValueError("n starts at 1 (or -1 for the last one)")
+        return v
 
 
 class ScreenCmd(_Cmd):
@@ -195,7 +209,7 @@ class UnknownCmd(_Cmd):
 Command = Annotated[
     Union[
         ScrollCmd, ClickCmd, TypeCmd, KeyCmd, MediaCmd, HotkeyCmd, OpenAppCmd,
-        CloseWindowCmd, GridCmd, GridClickCmd, GridZoomCmd, SmartClickCmd, ScreenCmd, WhatsAppCmd, WakeScreenCmd, KeepAwakeCmd, MemoryCmd, ForgetCmd, WeatherCmd, AirQualityCmd, WikiCmd,
+        CloseWindowCmd, GridCmd, GridClickCmd, GridZoomCmd, SmartClickCmd, OpenResultCmd, ScreenCmd, WhatsAppCmd, WakeScreenCmd, KeepAwakeCmd, MemoryCmd, ForgetCmd, WeatherCmd, AirQualityCmd, WikiCmd,
         CurrencyCmd, DefineCmd, NewsCmd, CricketCmd, GoToCmd, SearchCmd, TaskCmd, StopCmd, UnknownCmd,
     ],
     Field(discriminator="action"),

@@ -272,6 +272,18 @@ class SmartClicker:
             log.exception("OCR failed")
             return None
 
+    def controls(self) -> list[Candidate]:
+        """Every named control on screen in the active window (empty if it's too slow)."""
+        return self._uia_in_time()
+
+    def window_title(self) -> str:
+        try:
+            buf = ctypes.create_unicode_buffer(200)
+            ctypes.windll.user32.GetWindowTextW(self.window_id(), buf, 200)
+            return buf.value
+        except Exception:  # pragma: no cover - non-Windows
+            return ""
+
     def visible_names(self, limit: int = 40) -> str:
         """Short screen description for the task agent: window title + clickable names."""
         title = ""

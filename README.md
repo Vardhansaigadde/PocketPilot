@@ -57,6 +57,7 @@ Multi-step tasks use **plan once, then run simple commands**: the AI turns your 
 | Say | What happens |
 | --- | --- |
 | "click the Sign in button", "click Downloads", "right click on Documents", "double click My Pictures" | Finds that button, link or tab by its name and clicks it |
+| "play the second video", "open the first result", "click the 3rd link", "open the last result", "రెండో వీడియో ప్లే చెయ్యి" | On YouTube, Google or Bing: counts the videos or results **you can see right now**, top to bottom, and opens that one. Ads, the AI answer box and menus are skipped. After scrolling, "the second video" is the second one on screen |
 | "what's on my screen?" | Describes the screen (vision model, about 40 s) |
 | "summarize this page" | 2-3 sentence summary of the page you're on (about 30-40 s) |
 | "explain this error" | What the error on screen means and how to fix it (a few seconds) |

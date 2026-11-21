@@ -23,7 +23,7 @@ from .smart_click import is_risky
 from .commands import (
     GRID_CELLS, AirQualityCmd, ClickCmd, CricketCmd, CurrencyCmd, DefineCmd, NewsCmd, CloseWindowCmd, Command, GoToCmd, GridClickCmd, GridCmd,
     ForgetCmd, GridZoomCmd, KeepAwakeCmd, MemoryCmd, TaskCmd, WakeScreenCmd, WhatsAppCmd,
-    ScreenCmd, SmartClickCmd,
+    OpenResultCmd, ScreenCmd, SmartClickCmd,
     HotkeyCmd, KeyCmd, MediaCmd, OpenAppCmd, ScrollCmd, SearchCmd, StopCmd, TypeCmd,
     UnknownCmd, WeatherCmd, WikiCmd,
 )
@@ -221,6 +221,8 @@ class Executor:
             return self._grid(cmd)
         if isinstance(cmd, SmartClickCmd):
             return self._smart_click(cmd)
+        if isinstance(cmd, OpenResultCmd):
+            return self._open_result(cmd)
         if isinstance(cmd, TaskCmd):     # the assistant hands tasks to the task agent
             return Outcome("Multi-step tasks aren't available.", ok=False)
         if isinstance(cmd, WhatsAppCmd):
@@ -376,6 +378,25 @@ class Executor:
             pending = self.approvals.request(f'Click "{name}"?', click)
             return Outcome(f"Approve on your phone to click {name}.", approval=pending)
         return Outcome(click())
+
+    def _open_result(self, cmd: OpenResultCmd) -> Outcome:
+        """'play the second video', 'open the first result': counted among what is on screen now."""
+        from .results import ordinal, pick, short_title
+
+        if self.clicker is None:
+            return Outcome("Smart click isn't available. Say show grid instead.", ok=False)
+        title = self.clicker.window_title()
+        hit, count = pick(self.clicker.controls(), cmd.n, cmd.kind, title)
+        what = "video" if cmd.kind == "video" or "youtube" in title.lower() else "result"
+        if hit is None:
+            if count == 0:
+                return Outcome(f"I can't see any {what}s on the screen. Open a search page first, "
+                               "or say show grid to pick by number.", ok=False)
+            return Outcome(f"I can only see {count} {what}{'s' if count != 1 else ''} on the screen. "
+                           "Scroll down and count from the top again.", ok=False)
+        self.ctl.move_to(*hit.center)
+        self.ctl.click("left", 1)
+        return Outcome(f'Opening the {ordinal(cmd.n)} {what}: "{short_title(hit.name)}".')
 
     def stop(self) -> Outcome:
         """Kill switch: cancel approvals, hide the grid, let go of the mouse."""

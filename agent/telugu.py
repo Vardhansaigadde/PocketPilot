@@ -95,7 +95,8 @@ LOANWORDS = {
     "బ్రౌజర్": "browser", "ఫైల్": "file", "ఫోల్డర్": "folder", "ఆఫీస్": "office", "షో": "show", "హైడ్": "hide",
     "జూమ్": "zoom", "ఇన్": "in", "అవుట్": "out", "ఆఫ్": "off", "ఆన్": "on", "రీడ్": "read", "ఎక్స్‌ప్లెయిన్": "explain",
     "స్లీప్": "sleep", "వేక్": "wake", "లాక్": "lock", "టైమ్": "time", "డేట్": "date", "క్రికెట్": "cricket",
-    "స్కోర్": "score", "అమెజాన్": "amazon", "ఇన్‌స్టాగ్రామ్": "instagram", "జీమెయిల్": "gmail",
+    "స్కోర్": "score", "రిజల్ట్": "result", "వెబ్‌సైట్": "website", "లింక్": "link", "ఫస్ట్": "first",
+    "సెకండ్": "second", "థర్డ్": "third", "లాస్ట్": "last", "అమెజాన్": "amazon", "ఇన్‌స్టాగ్రామ్": "instagram", "జీమెయిల్": "gmail",
 }
 
 _JOINERS = str.maketrans("", "", "‌‍")
@@ -246,6 +247,18 @@ _NUM = {"okati": 1, "rendu": 2, "moodu": 3, "naalugu": 4, "nalugu": 4, "aidu": 5
         "enimidi": 8, "tommidi": 9, "padi": 10}
 
 
+# "rendo video play cheyyi", "మొదటి రిజల్ట్ ఓపెన్ చెయ్యి", "chivari video"
+_ORDINALS = {
+    "modati": 1, "modhati": 1, "modatidi": 1, "first": 1,
+    "rendo": 2, "rendava": 2, "rendavadi": 2, "rendodi": 2, "second": 2,
+    "moodo": 3, "mudo": 3, "moodava": 3, "moodavadi": 3, "third": 3,
+    "naalugo": 4, "nalugo": 4, "naalugava": 4, "aido": 5, "ayido": 5, "aidava": 5, "aaro": 6,
+    "chivari": -1, "chivaridi": -1, "last": -1,
+}
+_RESULT_KINDS = {"video": "video", "videos": "video", "song": "video", "songs": "video",
+                 "result": "result", "website": "result", "site": "result", "link": "link"}
+
+
 def to_command(text: str) -> Command | None:
     """A Command for a common Telugu/Tenglish phrase, or None (then the AI tries)."""
     words = normalise(text.strip(" .!?"))
@@ -255,6 +268,13 @@ def to_command(text: str) -> Command | None:
 
     if x.match(r"(?:aapu|aagu|aapeyi|aapandi|stop)(?: " + _DO + ")?"):
         return StopCmd(action="stop")
+
+    # the nth result or video on screen
+    if m := x.match(r"(?P<ord>" + "|".join(_ORDINALS) + r") (?P<kind>" + "|".join(_RESULT_KINDS) + r")"
+                    r"(?: (?:play|open|click|pettu|choodu|chudu|chupinchu|select))?(?: " + _DO + ")?"):
+        from .commands import OpenResultCmd
+
+        return OpenResultCmd(action="open_result", n=_ORDINALS[m.group("ord")], kind=_RESULT_KINDS[m.group("kind")])
 
     # calls: "amma ki call cheyyi", "amma ki video call cheyyi", "call amma ki"
     if m := x.match(r"(?P<who>.+?)" + _TO + r" (?P<video>video )?call(?: " + _DO + ")?"):
@@ -384,6 +404,10 @@ def _weather_te(m: re.Match) -> str:
 
 # (English reply pattern, Telugu reply or function). First match wins.
 _REPLIES: list[tuple[str, Any]] = [
+    (r"Opening the last (?P<k>video|result): (?P<x>.+)\.",
+     lambda m: f"చివరి {'వీడియో' if m['k'] == 'video' else 'రిజల్ట్'} తెరుస్తున్నాను: {m['x']}."),
+    (r"Opening the (?P<n>\d+)\w\w (?P<k>video|result): (?P<x>.+)\.",
+     lambda m: f"{m['n']}వ {'వీడియో' if m['k'] == 'video' else 'రిజల్ట్'} తెరుస్తున్నాను: {m['x']}."),
     (r"Opening (?P<x>.+?)\.(?: .*)?", "{x} తెరుస్తున్నాను."),
     (r"The (?P<x>.+?) app isn't installed, so I opened .+ on the web\.", "{x} యాప్ లేదు, వెబ్‌లో తెరిచాను."),
     (r"Volume up\.", "సౌండ్ పెంచాను."),
@@ -421,6 +445,10 @@ _REPLIES: list[tuple[str, Any]] = [
     (r"Screen is on\. It's locked.*", "స్క్రీన్ ఆన్ అయ్యింది. లాక్ తీయండి."),
     (r"Screen is on\.", "స్క్రీన్ ఆన్ అయ్యింది."),
     (r"Searching (?P<site>.+?) for (?P<x>.+)\.", "{site}లో {x} వెతుకుతున్నాను."),
+    (r"I can only see (?P<n>\d+) (?P<k>video|result)s? on the screen\..*",
+     lambda m: f"స్క్రీన్ మీద {m['n']} {'వీడియోలు' if m['k'] == 'video' else 'రిజల్ట్స్'} మాత్రమే ఉన్నాయి. కిందకి స్క్రోల్ చేసి మళ్ళీ చెప్పండి."),
+    (r"I can't see any (?P<k>video|result)s on the screen\..*",
+     lambda m: f"స్క్రీన్ మీద {'వీడియోలు' if m['k'] == 'video' else 'రిజల్ట్స్'} కనిపించట్లేదు. షో గ్రిడ్ అని చెప్పండి."),
     (r"(?P<place>[^:]+): (?P<temp>-?\d+)°C and (?P<sky>[a-z ]+?)(?:, feels like -?\d+°C)?\."
      r"(?: Today (?P<lo>-?\d+) to (?P<hi>-?\d+)°C)?(?:, (?P<rain>\d+)% chance of rain)?.*", _weather_te),
     (r"Air quality in (?P<place>.+?) is (?P<q>[a-z ]+): AQI (?P<n>\d+).*",

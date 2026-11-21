@@ -66,6 +66,16 @@ class WhatsAppError(Exception):
     """Something to tell the user, e.g. "I couldn't find Amma in WhatsApp"."""
 
 
+class AmbiguousContact(WhatsAppError):
+    """Several chats match ("Sharmila Akka", "Yamini Akka", ...): the user must pick one."""
+
+    def __init__(self, contact: str, names: list[str]) -> None:
+        self.contact = contact
+        self.names = names
+        listed = " ".join(f"{i}) {n}" for i, n in enumerate(names, 1))
+        super().__init__(f"Which {contact}? {listed}. Say the name or the number.")
+
+
 @dataclass
 class Prepared:
     chat: str                          # the chat that is open, e.g. "Amma"
@@ -255,9 +265,7 @@ class WhatsApp:
         names = self._close_names(contact, rows, row.score)
         if len(names) > 1:
             self._key("esc")
-            options = " or ".join(f"'{how_to_say(n)}'" for n in names[:3])
-            raise WhatsAppError(f"You have {len(names)} chats that match: {', '.join(names[:3])}. "
-                                f"Say {options}.")
+            raise AmbiguousContact(contact, names[:6])
         self._click(row)
         chat = None
         for _ in range(10):                               # wait up to ~3 s for the chat to open
@@ -379,8 +387,9 @@ class WhatsApp:
         """Different chat names that match (almost) as well as the best one."""
         names: list[str] = []
         for c in rows:
-            if score(contact, c.name) >= best - TIE:
-                n = name_part(c.name)
+            n = name_part(c.name)
+            # judge the NAME, not the whole row ("1 unread message ... akka" is not an Akka)
+            if score(contact, c.name) >= best - TIE and score(contact, n) >= 0.6 and re.search(r"[^\W\d_]", n):
                 if normalize(n) not in [normalize(x) for x in names]:
                     names.append(n)
         return names

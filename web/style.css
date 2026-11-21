@@ -371,6 +371,19 @@ button.on { background: var(--surface-2); border-color: var(--border-strong); }
 }
 .secondary { width: 100%; margin-top: 12px; font-weight: 600; }
 
+.choose-list { display: grid; gap: var(--gap); margin: 8px 0 4px; max-height: 55vh; overflow-y: auto; }
+.choice {
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 16px;
+  font-weight: 600;
+  text-align: left;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+.choice:active { background: var(--surface-press); }
+
 .approve { text-align: center; }
 .approve-icon {
   width: 52px; height: 52px; margin: 0 auto 10px;

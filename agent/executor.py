@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import logging
 import os
+import re
+import time
 from dataclasses import dataclass
 from typing import Any, Callable, Protocol
 
@@ -72,6 +74,38 @@ class Outcome:
     say: str                       # short reply for the user
     ok: bool = True
     approval: Pending | None = None
+    choices: list[str] | None = None   # "which one?" options shown as buttons on the phone
+
+
+CHOICE_SECONDS = 90
+_ORDINALS = {"first": 1, "one": 1, "1st": 1, "second": 2, "two": 2, "2nd": 2, "third": 3, "three": 3,
+             "3rd": 3, "fourth": 4, "four": 4, "4th": 4, "fifth": 5, "five": 5, "5th": 5, "sixth": 6,
+             "six": 6, "6th": 6, "last": -1}
+
+
+@dataclass
+class Choice:
+    """A pending "which one?" question: the command waiting for a contact, and the options."""
+    cmd: Any
+    options: list[str]
+    expires: float
+
+    def pick(self, said: str) -> str | None:
+        """The option the user meant ("2", "second", "the first one", "Sharmila"), "cancel", or None."""
+        from .smart_click import best_match as _best, Candidate as _C
+
+        t = " ".join(said.lower().strip(" .!?").split())
+        t = re.sub(r"^(?:the |number |option )", "", t)
+        if t not in _ORDINALS:
+            t = re.sub(r" (?:one|please)$", "", t)          # "the second one" -> "second"
+        if t in ("cancel", "none", "no", "never mind", "nevermind", "stop", "neither"):
+            return "cancel"
+        n = int(t) if t.isdigit() else _ORDINALS.get(t)
+        if n is not None:
+            idx = n - 1 if n > 0 else len(self.options) - 1
+            return self.options[idx] if 0 <= idx < len(self.options) else None
+        hit = _best(said, [_C(o, "ListItem", (0, i * 10, 10, i * 10 + 5)) for i, o in enumerate(self.options)])
+        return hit.name if hit is not None else None
 
 
 _SAY_MEDIA = {
@@ -109,6 +143,7 @@ class Executor:
         whatsapp: Messenger | None = None,
         awake: Any = None,
         locked: Callable[[], bool] = lambda: False,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self.ctl = controller
         self.approvals = approvals
@@ -123,6 +158,8 @@ class Executor:
         self.whatsapp = whatsapp
         self.awake = awake       # keep_awake.KeepAwake
         self.locked = locked     # is the Windows lock screen showing?
+        self.clock = clock
+        self.choice: Choice | None = None   # a pending "which one?" question
 
     def run(self, cmd: Command) -> Outcome:
         try:
@@ -242,7 +279,7 @@ class Executor:
         """Get the chat ready, then wait for Approve before anything is sent or dialled."""
         if self.whatsapp is None:
             return Outcome("WhatsApp control isn't available.", ok=False)
-        from .whatsapp import WhatsAppError
+        from .whatsapp import AmbiguousContact, WhatsAppError
 
         try:
             if cmd.kind == "open":
@@ -258,6 +295,9 @@ class Executor:
                 ready = self.whatsapp.prepare_call(cmd.contact, video=video)
                 question = f"{'Video' if video else 'Voice'} call {ready.chat} on WhatsApp?"
                 say = f"Approve on your phone to call {ready.chat}."
+        except AmbiguousContact as exc:
+            self.choice = Choice(cmd, exc.names, self.clock() + CHOICE_SECONDS)
+            return Outcome(str(exc), choices=exc.names)
         except WhatsAppError as exc:
             return Outcome(str(exc), ok=False)
 
@@ -269,6 +309,20 @@ class Executor:
 
         pending = self.approvals.request(question, go, on_cancel=ready.undo)
         return Outcome(say, approval=pending)
+
+    def answer_choice(self, said: str) -> Outcome | None:
+        """If a "which one?" question is waiting and `said` answers it, finish the original
+        command with that contact. Returns None if `said` isn't an answer (the question is
+        then dropped, because the user moved on)."""
+        choice, self.choice = self.choice, None
+        if choice is None or choice.expires < self.clock():
+            return None
+        picked = choice.pick(said)
+        if picked is None:
+            return None
+        if picked == "cancel":
+            return Outcome("OK, cancelled.")
+        return self.run(choice.cmd.model_copy(update={"contact": f"just {picked}"[:60]}))
 
     def _memory(self, cmd: MemoryCmd | ForgetCmd) -> Outcome:
         if self.memory is None:

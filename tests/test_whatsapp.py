@@ -246,7 +246,8 @@ def test_same_name_asks_instead_of_guessing():
     with pytest.raises(WhatsAppError) as err:
         w.open_chat("amma")
     msg = str(err.value)
-    assert "Amma ❤️" in msg and "'amma heart'" in msg and "'just amma'" in msg
+    assert msg == "Which amma? 1) Amma ❤️ 2) Amma. Say the name or the number."
+    assert err.value.names == ["Amma ❤️", "Amma"]
     assert wa.open is None                                   # nothing opened, nothing typed after
 
 
@@ -272,7 +273,7 @@ def test_approve_card_shows_the_exact_contact():
     out = run(ex, {"action": "whatsapp", "contact": "amma heart", "kind": "message", "text": "hi"})
     assert out.approval.text == 'Send to Amma ❤️ on WhatsApp: "hi"?'
     out = run(ex, {"action": "whatsapp", "contact": "amma", "kind": "voice_call"})
-    assert out.approval is None and not out.ok and "just amma" in out.say
+    assert out.approval is None and out.choices == ["Amma ❤️", "Amma"]
 
 
 def typed_search(w, wa):
@@ -308,3 +309,96 @@ def test_leftover_search_is_cleared_first():
 
 def c_(name, kind, x, y):
     return Candidate(name, kind, (x, y, x + 40, y + 20))
+
+
+
+# ---- answering "which one?" -------------------------------------------------------------------
+
+def akkas():
+    return make(contacts=("Sharmila Akka", "Yamini Akka", "Leela Akka 💝", "Appa"))
+
+
+def test_choice_answers():
+    from agent.executor import Choice
+
+    c = Choice(None, ["Sharmila Akka", "Yamini Akka", "Leela Akka 💝"], expires=1e18)
+    for said, want in [("2", "Yamini Akka"), ("second", "Yamini Akka"), ("the first one", "Sharmila Akka"),
+                       ("number 3", "Leela Akka 💝"), ("last", "Leela Akka 💝"), ("Sharmila", "Sharmila Akka"),
+                       ("yamini akka", "Yamini Akka"), ("leela akka heart", "Leela Akka 💝"),
+                       ("cancel", "cancel"), ("7", None), ("open notepad", None)]:
+        assert c.pick(said) == want, said
+
+
+def test_which_akka_then_answer_finishes_the_message():
+    from agent.assistant import Assistant
+
+    w, wa, ctl = akkas()
+    ex = Executor(ctl, Approvals(), whatsapp=w, app_available=lambda t: True)
+    a = Assistant(ex)
+    first = a.handle_text("message akka that hi")
+    assert first[0]["text"].startswith("Which akka? 1) Sharmila Akka 2) Yamini Akka 3) Leela Akka")
+    assert first[1] == {"t": "choices", "text": first[0]["text"],
+                        "options": ["Sharmila Akka", "Yamini Akka", "Leela Akka 💝"]}
+    second = a.handle_text("yamini")
+    assert second[-1]["t"] == "approve_request"
+    assert second[-1]["text"] == 'Send to Yamini Akka on WhatsApp: "hi"?'
+    assert ("key", "enter") not in ctl.calls                # still waiting for Approve
+
+
+def test_answer_by_number_for_a_call():
+    from agent.assistant import Assistant
+
+    w, wa, ctl = akkas()
+    a = Assistant(Executor(ctl, Approvals(), whatsapp=w, app_available=lambda t: True))
+    a.handle_text("call akka")
+    assert a.handle_text("3")[-1]["text"] == "Voice call Leela Akka 💝 on WhatsApp?"
+
+
+def test_a_different_command_drops_the_question():
+    from agent.assistant import Assistant
+
+    w, wa, ctl = akkas()
+    ex = Executor(ctl, Approvals(), whatsapp=w, app_available=lambda t: True)
+    a = Assistant(ex)
+    a.handle_text("message akka that hi")
+    assert a.handle_text("volume up")[0]["text"] == "Volume up."
+    assert ex.choice is None                                # "2" now would be an ordinary phrase
+
+
+def test_question_expires():
+    from agent.assistant import Assistant
+
+    now = [0.0]
+    w, wa, ctl = akkas()
+    ex = Executor(ctl, Approvals(), whatsapp=w, app_available=lambda t: True, clock=lambda: now[0])
+    a = Assistant(ex)
+    a.handle_text("message akka that hi")
+    now[0] += 200
+    out = a.handle_text("yamini")
+    assert not any(m.get("t") == "approve_request" for m in out)
+
+
+def test_cancel_the_question():
+    from agent.assistant import Assistant
+
+    w, wa, ctl = akkas()
+    a = Assistant(Executor(ctl, Approvals(), whatsapp=w, app_available=lambda t: True))
+    a.handle_text("call akka")
+    assert a.handle_text("cancel")[0]["text"] == "OK, cancelled."
+
+
+
+def test_rows_that_only_mention_the_name_are_not_options():
+    w, wa, _ = make(contacts=("Sharmila Akka", "Yamini Akka"))
+    real = wa.controls
+
+    def controls(hwnd):
+        out = real(hwnd)
+        if wa.searched:
+            out.append(c("1 unread message from Akka group", "DataItem", 100, 900))
+        return out
+
+    w.controls = controls
+    with pytest.raises(Exception) as err:
+        w.open_chat("akka")
+    assert err.value.names == ["Sharmila Akka", "Yamini Akka"]

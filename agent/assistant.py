@@ -45,6 +45,8 @@ def reply(text: str, ok: bool = True) -> dict:
 
 def _outcome_messages(out: Outcome) -> list[dict]:
     msgs = [reply(out.say, out.ok)]
+    if out.choices:
+        msgs.append({"t": "choices", "text": out.say, "options": out.choices})
     if out.approval is not None:
         p = out.approval
         msgs.append({"t": "approve_request", "id": p.id, "text": p.text, "seconds": p.seconds})
@@ -116,6 +118,12 @@ class Assistant:
         return self.planner.to_command(text)
 
     def _handle_text(self, text: str, source: str = "typed") -> list[dict]:
+        if self.executor.choice is not None:              # answering "which Akka?"
+            out = self.executor.answer_choice(text)
+            if out is not None:
+                if self.memory is not None:
+                    self.memory.log(source, text, {"action": "choice"}, out.ok, out.say)
+                return _outcome_messages(out)
         steps = split_steps(text)
         if len(steps) > 1:
             return self._handle_steps(steps, source)

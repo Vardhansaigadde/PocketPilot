@@ -52,7 +52,10 @@
     } else if (m.t === 'busy') {
       mic.classList.toggle('busy', !!m.on && !recording);
     } else if (m.t === 'approve_request') {
+      closeChoices();
       askApproval(m);
+    } else if (m.t === 'choices') {
+      askChoice(m);
     } else if (m.t === 'hello') {
       mic.hidden = false;
       if (!window.isSecureContext || !navigator.mediaDevices) mic.title = 'Voice needs HTTPS';
@@ -87,6 +90,41 @@
   const dlg = $('#approveDlg');
   let approval = null;
   let approvalTimer = null;
+
+  // ---- "Which one?" card (e.g. several chats called "Akka") ---------------------
+  // Tapping a name sends it as the answer; saying it or its number works too.
+  const chooseDlg = $('#chooseDlg');
+
+  function askChoice(m) {
+    const list = $('#chooseList');
+    list.textContent = '';
+    $('#chooseTitle').textContent = (m.text || 'Which one?').split('?')[0] + '?';
+    (m.options || []).forEach((name, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'choice';
+      b.textContent = `${i + 1}  ${name}`;
+      b.addEventListener('click', () => {
+        closeChoices();
+        heard = name;
+        PP.send({ t: 'command', text: String(name).slice(0, 300) });
+        show('…', true, 0);
+      });
+      list.appendChild(b);
+    });
+    if (typeof chooseDlg.showModal === 'function' && !chooseDlg.open) chooseDlg.showModal();
+    if (navigator.vibrate) navigator.vibrate(20);
+  }
+
+  function closeChoices() {
+    if (chooseDlg.open) chooseDlg.close();
+  }
+
+  $('#chooseCancel').addEventListener('click', () => {
+    closeChoices();
+    PP.send({ t: 'command', text: 'cancel' });
+  });
+  chooseDlg.addEventListener('cancel', (e) => { e.preventDefault(); closeChoices(); PP.send({ t: 'command', text: 'cancel' }); });
 
   function askApproval(m) {
     closeApproval();

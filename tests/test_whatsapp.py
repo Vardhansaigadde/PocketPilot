@@ -25,7 +25,8 @@ class FakeWhatsApp:
 
     def controls(self, hwnd):
         out = [c("Search or start a new chat", "Edit", 100, 50), c("Chats", "Button", 10, 10)]
-        if self.searched:
+        if self.searched:                                 # real search results start with a section header
+            out += [c("Chats", "DataItem", 100, 150)]
             out += [c(f"{name} Yesterday hello", "DataItem", 100, 200 + 60 * i) for i, name in enumerate(self.contacts)]
         if self.open:
             out += [c(f"Contact info {self.open}", "Button", 900, 20), c("Video call", "Button", 1700, 20),
@@ -466,3 +467,73 @@ def test_group_call_says_it_rings_everyone():
     out = run(ex, {"action": "whatsapp", "contact": "palmoil", "kind": "video_call"})
     assert out.approval.text == "Group video call Palmoil 🌴 🛢️ on WhatsApp? (rings everyone in the group)"
     assert ex.approvals.resolve(out.approval.id, ok=True) == "Calling Palmoil 🌴 🛢️ (video call)."
+
+
+class SlowSearchWhatsApp(FakeWhatsApp):
+    """Like a busy laptop: the normal chat list stays up for a few reads after typing,
+    then the search results replace it and the wanted chat moves to another spot."""
+
+    def __init__(self, delay_reads=3):
+        super().__init__(("Akka 💝 🥰", "Vinitha Akka"))
+        self.delay = delay_reads
+        self.normal = ["Amma ❤️", "Dheemuluuuu 🐶", "Akka 💝 🥰"]   # Akka 3rd in the normal list
+        self.results = ["Vinitha Akka", "Akka 💝 🥰"]             # but 2nd in the results
+
+    def controls(self, hwnd):
+        out = [c("Search or start a new chat", "Edit", 100, 50)]
+        if self.open:
+            out += [c(f"Contact info {self.open}", "Button", 900, 20),
+                    c(f"Type a message to {self.open}", "Edit", 900, 1000)]
+            return out
+        if self.searched and self.delay > 0:
+            self.delay -= 1
+        names = self.results if self.searched and self.delay == 0 else self.normal
+        if names is self.results:
+            out.append(c("Chats", "DataItem", 100, 150))
+        out += [c(f"{n} Yesterday hi", "DataItem", 100, 200 + 60 * i) for i, n in enumerate(names)]
+        return out
+
+    def clicked(self, x, y):
+        if (x, y) == (120, 60):
+            self.searched = False                         # clicking the box: still the normal list
+        names = self.results if self.searched and self.delay == 0 else self.normal
+        for i, n in enumerate(names):
+            if (x, y) == (120, 210 + 60 * i):
+                self.open = n
+
+
+class TypingCtl(Ctl):
+    def type_text(self, text):
+        self.calls.append(("type_text", text))
+        self.wa.searched = True
+
+
+def make_slow(delay_reads=3):
+    wa = SlowSearchWhatsApp(delay_reads)
+    ctl = TypingCtl(wa)
+    w = WhatsApp(ctl, controls=wa.controls, windows=lambda: [1], bring_front=lambda h: None,
+                 start=lambda: None, sleep=lambda s: None, front=lambda h: True)
+    return w, wa
+
+
+def test_slow_search_waits_for_results_instead_of_clicking_the_old_list():
+    w, wa = make_slow(delay_reads=3)
+    assert w.open_chat("Akka") == "Akka 💝 🥰"           # not "Vinitha Akka"
+
+
+def test_search_results_that_never_come_click_nothing():
+    w, wa = make_slow(delay_reads=10_000)
+    with pytest.raises(WhatsAppError, match="didn't show the search results"):
+        w.open_chat("Akka")
+    assert wa.open is None
+
+
+def test_click_uses_where_the_row_is_now():
+    from agent.smart_click import Candidate as Cand
+
+    w, wa, _ = make()
+    moved = [c("Chats", "DataItem", 100, 150), c("Appa Yesterday hello", "DataItem", 100, 200),
+             c("Amma Yesterday hello", "DataItem", 100, 320)]
+    w.controls = lambda h: moved
+    row = Cand("Amma Yesterday hello", "DataItem", (100, 260, 140, 280))   # where it was read
+    assert w._fresh(1, row).rect[1] == 320

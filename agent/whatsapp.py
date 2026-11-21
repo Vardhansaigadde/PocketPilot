@@ -33,6 +33,9 @@ TITLE = re.compile(r"^(?:\(\d+\) )?WhatsApp$")
 CHAT_ROWS = ("DataItem", "ListItem", "TreeItem")
 MATCH = 0.85                 # how sure we must be that the open chat is the right person
 TIE = 0.05                   # chats scoring this close to the best one count as "also a match"
+# Section headers WhatsApp puts in search results (the normal chat list has none).
+SECTIONS = {"chats", "contacts", "groups", "messages", "channels", "communities"}
+SEARCH_WAIT_TRIES = 12       # x 0.5 s: how long to wait for search results to replace the chat list
 
 # A chat row is "<name> <time or day> <last message>": the name ends where the time starts.
 _ROW_END = re.compile(
@@ -279,9 +282,10 @@ class WhatsApp:
         self._click(search)
         self._select_all()
         self._key("backspace")
+        before = self._row_names(hwnd)                    # the normal chat list
         self._type(search_text(contact))
         # match on the row without "1 unread message" etc. in front of the name
-        rows = [replace(c, name=clean_row(c.name)) for c in self._settled_rows(hwnd)]
+        rows = [replace(c, name=clean_row(c.name)) for c in self._settled_rows(hwnd, before)]
         if exact:                                         # "just amma": the name must be exactly that
             rows = [c for c in rows if normalize(name_part(c.name)) == normalize(contact)]
         row = best_match(contact, rows)
@@ -292,7 +296,7 @@ class WhatsApp:
         if len(names) > 1:
             self._key("esc")
             raise AmbiguousContact(contact, names[:6])
-        self._click(row)
+        self._click(self._fresh(hwnd, row))
         chat = None
         for _ in range(10):                               # wait up to ~3 s for the chat to open
             self.sleep(0.3)
@@ -385,18 +389,59 @@ class WhatsApp:
         self._hwnd = hwnd
         return hwnd
 
-    def _settled_rows(self, hwnd: int) -> list[Candidate]:
+    def _rows(self, hwnd: int) -> list[Candidate]:
+        return [c for c in self.controls(hwnd) if c.kind in CHAT_ROWS]
+
+    def _row_names(self, hwnd: int) -> list[str]:
+        return [c.name for c in self._rows(hwnd)]
+
+    def _settled_rows(self, hwnd: int, before: list[str] | None = None) -> list[Candidate]:
         """Search results, once they stop changing. WhatsApp shows matching chats first and
-        contacts a moment later, so reading too early can miss a second "Amma"."""
+        contacts a moment later, so reading too early can miss a second "Amma".
+
+        When the laptop is busy WhatsApp can take seconds to swap the normal chat list for
+        the results. Reading the old list then clicks a spot where a different chat appears
+        a moment later (asked for "Akka", opened "Vinitha Akka"). So first wait until the
+        results are really there: a "Chats"/"Contacts" section header, or a list that
+        differs from the one before typing."""
         self.sleep(1.0)
-        rows: list[Candidate] = [c for c in self.controls(hwnd) if c.kind in CHAT_ROWS]
+        rows = self._rows(hwnd)
+        for _ in range(SEARCH_WAIT_TRIES):                # up to ~6 s more
+            names = [c.name for c in rows]
+            if any(n.strip().lower() in SECTIONS for n in names):
+                break                                     # real results
+            if before is not None and names and names != before:
+                break                                     # a new, non-empty list (not mid-swap)
+            if self._no_results(hwnd):
+                return []
+            self.sleep(0.5)
+            rows = self._rows(hwnd)
+        else:
+            if before is not None:
+                self._key("esc")
+                raise WhatsAppError("WhatsApp didn't show the search results in time, "
+                                    "so I didn't click anything. Try again.")
         for _ in range(4):                                # up to ~2 s more
             self.sleep(0.5)
-            again = [c for c in self.controls(hwnd) if c.kind in CHAT_ROWS]
+            again = self._rows(hwnd)
             if [c.name for c in again] == [c.name for c in rows]:
                 break
             rows = again
         return rows
+
+    def _no_results(self, hwnd: int) -> bool:
+        """WhatsApp's "No chats, contacts or messages found"."""
+        return self._find(hwnd, lambda c: c.name.lower().startswith("no ") and "found" in c.name.lower()) is not None
+
+    def _fresh(self, hwnd: int, row: Candidate) -> Candidate:
+        """Where the chosen chat row is right now, read again just before clicking, in case
+        the list moved since it was read. Never clicks a spot the row has left."""
+        same = [c for c in self._rows(hwnd) if c.kind == row.kind and clean_row(c.name) == row.name]
+        if not same:
+            self._key("esc")
+            raise WhatsAppError(f"The search results changed before I could open {name_part(row.name)}, "
+                                "so I didn't click anything. Try again.")
+        return min(same, key=lambda c: abs(c.rect[1] - row.rect[1]))
 
     def _search_box(self, hwnd: int) -> Candidate | None:
         """WhatsApp's search box. While it still holds an old search it loses its

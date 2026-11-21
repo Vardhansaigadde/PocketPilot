@@ -1,120 +1,73 @@
 # PocketPilot
 
-**Your phone becomes a touchpad, keyboard and voice remote for your laptop, with a free local AI agent that does tasks on screen when you ask in English or Telugu.**
+**Your phone becomes a touchpad, keyboard and voice remote for your Windows laptop, with a local AI agent that does tasks on screen when you ask in English or Telugu.**
 
-Zero cost: everything is open source and runs on your own laptop. No cloud account needed.
+Zero cost: everything is open source and runs on your own laptop, on the CPU. No cloud account, no paid API.
 
-> Status: **v1 (touchpad) and v2 (voice commands) work**, tested on a real phone with the [25-command checklist](docs/v2-commands.md). **v3 (smart click + screen explainer) works** too ([v3 checklist](docs/v3-tests.md)). **v4 (WhatsApp messages and calls, multi-step tasks, memory, more skills) works** too ([v4 checklist](docs/v4-tests.md)). **v5 (Telugu voice and Telugu replies) works** too ([v5 checklist](docs/v5-tests.md)). Next: launch. See the [roadmap](#roadmap).
+<!-- Demo GIF goes here once recorded: ![PocketPilot demo](docs/demo.gif) -->
 
-<!-- Add a demo GIF here once recorded: docs/demo-v1.gif -->
+## What it can do
 
-## Telugu (v5)
+- **Touchpad and keyboard:** move, click, drag, scroll and type on the laptop from your phone's browser. Pair by scanning a QR code.
+- **Voice commands:** "open notepad and type my shopping list", "search YouTube for lofi", "weather in Hyderabad", "close this tab". Common phrases run instantly; anything else goes to a small AI model on the laptop.
+- **Clicks what you name:** "click the Sign in button", "play the second video", "open the first result". It reads the buttons on screen instead of guessing coordinates.
+- **WhatsApp, safely:** "message Amma that I'll be late", "call Amma". It types the message, then waits: **nothing is sent or called until you tap Approve** on the phone.
+- **Telugu:** speak Telugu or Telugu mixed with English ("ammaki call cheyyi", "హైదరాబాద్‌లో వాతావరణం ఎలా ఉంది") and get the answer in Telugu.
+- **Reads the screen:** "summarize this page", "explain this error", "what's on my screen?".
 
-Tap **EN** next to the command box so it shows **తె**, then speak Telugu, or Telugu mixed with
-English. Replies come back in Telugu and the phone speaks them.
+**54 of 57 real tasks succeed (95%)** on a CPU-only laptop, across English, WhatsApp, Telugu and on-screen tasks ([how it was measured](#how-well-it-works)).
 
-| Say | What happens |
+## Quick start (Windows)
+
+You need:
+- **Python 3.11+** ([python.org](https://www.python.org/downloads/); tick "Add python.exe to PATH")
+- **Ollama** ([ollama.com](https://ollama.com), free) for the local AI. Without it the touchpad and the instant voice phrases still work.
+- Your phone on the **same Wi-Fi** as the laptop
+
+```powershell
+cd pocketpilot
+python -m pip install -r requirements.txt
+ollama pull qwen3:4b
+python run.py
+```
+
+1. A QR code appears (in the terminal and as an image).
+2. Scan it with your phone camera and open the link.
+3. The first time, the phone says the connection **isn't private**. That's expected: PocketPilot makes its own certificate on your laptop. Tap **Advanced → Proceed** (or [remove the warning for good](#optional-remove-the-not-private-warning-recommended)).
+4. If Windows asks about the firewall, allow **Private networks** only.
+5. Optional: in your phone browser menu, choose **Add to Home screen** so it opens like an app.
+
+The first start downloads the speech model (about 145 MB) and the wake-word model (about 5 MB); `qwen3:4b` is about 2.5 GB. The first Telugu command downloads the Telugu speech model (about 250 MB). After that everything works offline, except web skills like weather and search.
+
+Optional settings: copy `.env.example` to `.env` (home city for "weather", the WhatsApp names you use most, free keys for news and cricket).
+
+| Command | What it does |
 | --- | --- |
-| "నోట్‌ప్యాడ్ ఓపెన్ చెయ్యి", "notepad open cheyyi" | Opens Notepad |
-| "అమ్మకి కాల్ చెయ్యి", "ammaki call cheyyi" | Approve card for a WhatsApp call to Amma |
-| "అక్కకి హాయ్ అని మెసేజ్ పంపు" | Drafts "హాయ్" to Akka, sends after Approve ("రెండు" picks the 2nd Akka) |
-| "హైదరాబాద్‌లో వాతావరణం ఎలా ఉంది" | Hyderabad weather, answered in Telugu |
-| "యూట్యూబ్‌లో తెలుగు పాటలు పెట్టు" | YouTube search for తెలుగు పాటలు |
-| "వాల్యూమ్ పెంచు", "కిందకి స్క్రోల్ చెయ్యి", "స్క్రోల్ డౌన్", "ఆపు" | Volume, scrolling, stop |
+| `python run.py` | Start (or double-click `start.bat`) |
+| `python run.py --no-wake` | No laptop microphone ("Hey Jarvis" off) |
+| `python run.py --no-voice` | Touchpad only |
+| `python run.py --http` | Plain HTTP (touchpad works, the phone mic doesn't) |
+| `python run.py --new-token` | Unpair every phone and make a new QR code |
 
-How it works: a Telugu-trained Whisper model (250 MB, downloaded the first time) turns speech into
-Telugu text. Common commands are matched by Telugu phrase rules in `agent/telugu.py` (instant, no
-AI): it strips Telugu case endings (అమ్మ**కి**), turns Telugu-script English words back into
-English (స్క్రోల్ డౌన్ → scroll down) and maps family and city names (అక్క → Akka,
-హైదరాబాద్ → Hyderabad). Anything else goes to the local AI with a transliterated hint. Replies
-use Telugu templates; the phone's own Android voice speaks them, because Windows has no Telugu voice.
-On this laptop's CPU it takes 3–5 s for a 6–10 s sentence, with 2–10 % character errors on
-clear Telugu speech.
+For screen descriptions ("what's on my screen?") also run `ollama pull qwen3.5:4b` (a model that can see images).
 
-## WhatsApp, tasks, memory and more skills (v4)
+### Optional: remove the "not private" warning (recommended)
+PocketPilot runs over **HTTPS**, because phones only allow the microphone on secure pages. It makes its own certificates in `data/`, for free.
 
-| Say | What happens |
-| --- | --- |
-| "message amma that I'll be late", "reply to Kidduuu saying OK" | Opens the chat and types the message; **sends only after you tap Approve** (Cancel clears the draft) |
-| "call amma", "video call amma on WhatsApp" | Opens the chat; **calls only after Approve** |
-| "open notepad and write my shopping list: milk, eggs and bread" | The AI plans simple steps once, then runs them one by one (shown on the phone) |
-| "what did I do today?", "what was I working on yesterday?" | Answers from a local history log (`data/history.db`, never uploaded); "clear my history" deletes it |
-| "convert 100 dollars to rupees", "dollar rate" | Today's exchange rate (Frankfurter, no key) |
-| "define serendipity", "what does ephemeral mean" | Dictionary meaning + example (no key) |
-| "news", "news about ISRO" | Top headlines (free key from gnews.io in `.env`) |
-| "cricket score" | Live scores (free key from cricketdata.org in `.env`) |
-| "open my laptop", "wake up" | Turns the laptop screen back on (if it's locked, unlock with face, fingerprint or PIN) |
-| "keep my laptop awake", "let my laptop sleep" | While PocketPilot runs it stops the laptop sleeping **when plugged in** (default), always, or never |
+To make your phone trust them for good (Android):
+1. On the phone, open `https://<laptop-ip>:8765/pocketpilot-ca.crt` (the exact link is printed in the terminal) and download it.
+2. Go to **Settings → Security → More security settings → Install from device storage → CA certificate** (wording varies by phone), and pick the downloaded file.
+3. Reopen PocketPilot: no warning, and Add to Home screen works like a real app.
 
-**Why keep-awake instead of waking from sleep?** While the laptop sleeps Windows pauses PocketPilot too, and a phone browser can't send Wake-on-LAN packets. So by default PocketPilot asks Windows not to sleep while it's charging (the screen still turns off), and "open my laptop" turns the screen back on. Nothing in Windows' settings is changed, and the request ends when PocketPilot stops. `POCKETPILOT_KEEP_AWAKE=always|charging|off` in `.env`.
+This certificate can **only** vouch for home-network addresses (192.168.x.x, 10.x.x.x, 172.16–31.x.x) and `localhost`, so it can't be used to fake real websites. If you change Wi-Fi, PocketPilot makes a new server certificate automatically and the phone keeps trusting it. You can remove it any time in the same Settings screen.
 
-WhatsApp is driven through its own button names (UI Automation), not by guessing where to click. Put the names you message most in `.env` as `POCKETPILOT_CONTACTS=Amma, Nanna, Kidduuu`: speech-to-text then hears them right, and close mishearings ("Amah") snap to the real name. Common Telugu family names (Amma, Nanna, Akka, Anna...) are known out of the box. Two chats with the same name ("Amma ❤️" and "Amma")? It never guesses: it asks you to say **"amma heart"** or **"just amma"** (common emoji have spoken names: heart, ribbon, star, flower, crown...), and the Approve card always shows the exact contact, emoji included. To make plain "amma" mean the ❤️ one, put `POCKETPILOT_CONTACTS=Amma ❤️` in `.env`. Before sending or calling it checks that the chat header really is the person you named, and again right before it presses Enter or the call button.
+### If the phone can't connect
+- Phone and laptop must be on the same Wi-Fi. College and public Wi-Fi often block devices from talking to each other: use your **phone's hotspot** and connect the laptop to it.
+- Make sure the Windows Firewall prompt was allowed for Private networks. If you dismissed it, open *Windows Security → Firewall → Allow an app* and tick Python for Private.
+- Check the network is set to *Private* in Windows Wi-Fi settings, not *Public*.
+- After updating from an older version, the address changed from `http://` to `https://`: scan the QR code once more.
 
-Multi-step tasks use **plan once, then run simple commands**: the AI turns your request into a short list like "open notepad", "type …", and each step goes through the normal checks (allow-list, blocked apps, Approve). An earlier "look, decide, act" loop was tested and dropped: on a CPU the 4B model took about 15 s per step and lost track of what it had done.
-
-## Smart click and screen explainer (v3)
-
-| Say | What happens |
-| --- | --- |
-| "click the Sign in button", "click Downloads", "right click on Documents", "double click My Pictures" | Finds that button, link or tab by its name and clicks it |
-| "play the second video", "open the first result", "click the 3rd link", "open the last result", "రెండో వీడియో ప్లే చెయ్యి" | On YouTube, Google or Bing: counts the videos or results **you can see right now**, top to bottom, and opens that one. Ads, the AI answer box and menus are skipped. After scrolling, "the second video" is the second one on screen |
-| "what's on my screen?" | Describes the screen (vision model, about 40 s) |
-| "summarize this page" | 2-3 sentence summary of the page you're on (about 30-40 s) |
-| "explain this error" | What the error on screen means and how to fix it (a few seconds) |
-| "read the screen" | Reads the visible text out loud (instant) |
-
-How smart click finds things: first Windows **UI Automation** (the same list of buttons screen readers use, about 0.2 s), then Windows' built-in **OCR** (reads the text on screen, about 0.3 s) if the app doesn't share its buttons. If neither finds it, it says so and you can use the numbered grid. Names are matched the way speech-to-text hears them ("kidd u" finds the chat "Kidduuu", "log in" finds "Login"), but never across opposite words ("show" never clicks "Hide"); a close match is reported as "(closest match)". Very large windows, like a long WhatsApp chat, switch to OCR after 2 seconds. Buttons like Send, Delete, Pay or Sign in always wait for **Approve** on the phone.
-
-The screen explainer reads the window's text with Windows OCR and asks the local text model; "what's on my screen" sends a small screenshot to the local vision model (`qwen3.5:4b`, `ollama pull qwen3.5:4b`). Screenshots stay in memory: never saved, never sent anywhere.
-
-## Voice commands (v2)
-
-Hold the **mic** on the phone and speak, or **slide it right to lock** and talk hands-free, then tap ✓ to send (slide left to cancel, like a WhatsApp voice note). You can also type in the command box, or say **"Hey Jarvis"** to the laptop and then your command. The reply shows on the phone and is spoken out loud.
-
-| Say | What happens |
-| --- | --- |
-| "scroll down", "scroll up a lot", "click", "right click", "double click" | Mouse |
-| "type hello world", "press enter", "copy", "paste", "undo", "select all" | Keyboard |
-| "volume up", "mute", "pause", "next song" | Media keys |
-| "switch app", "show desktop" | Windows shortcuts |
-| "open Chrome / Edge / Notepad / Calculator / File Explorer / Settings / WhatsApp / Spotify / VS Code / Paint / Word / Excel / PowerPoint / Camera" | Opens that app |
-| "close the window" | Asks **Approve** on the phone first |
-| "show grid" → "click 14" | 96 numbered boxes over the screen; clicks the middle of box 14 |
-| "zoom 14" → "click 5" | Splits box 14 into 9 smaller boxes for tiny buttons, then clicks one |
-| "weather", "weather in Hyderabad", "when is sunset" | Open-Meteo forecast |
-| "air quality in Delhi" | AQI + simple advice |
-| "who is APJ Abdul Kalam", "tell me about the Taj Mahal" | Short Wikipedia summary |
-| "search YouTube for lofi", "search Amazon for a wireless mouse", "search GitHub for pocketpilot" | Opens Edge on the search results |
-| "play Dude", "play the song Kesariya" | Finds the song on YouTube |
-| "play Dude on Spotify" | Spotify search (in the Spotify app if installed, otherwise the Spotify web player) |
-| "go to GitHub", "open ChatGPT", "visit CodeChef", "go to github.com/Vardhansaigadde/PocketPilot" | Opens that website (40 popular sites by name, or any address) |
-| "ask ChatGPT how to reverse a list in Python" | Opens ChatGPT with your question |
-| "new tab", "next tab", "go back", "refresh", "address bar" | Browser shortcuts |
-| "close this tab", "reopen closed tab" | Closes the tab in a browser, Notepad or VS Code (never presses Ctrl+W in other apps, where it could close the whole window). Unsaved Notepad tabs: it tells you Notepad is asking to save and never answers for you |
-| "search for cricket score", "go to github" (with a browser in front) | Opens it in a **new tab of the browser you are using** (Chrome, Edge, Firefox...). With no browser in front it opens Edge as before |
-| "open Edge **then** type github.com **then** press enter" | Runs up to 5 commands in order, waiting for windows to open |
-| "stop" (or the **■** button) | Cancels everything |
-
-Common phrases are matched instantly without AI (about 0.5 s from the phone mic). Anything else ("I want to listen to some lofi") goes to a small AI model running on your laptop through Ollama, which can only answer with one of the actions above. The model loads in the background when PocketPilot starts (up to a minute on a CPU), so it's ready by the time you speak. Apps that aren't installed (Spotify, WhatsApp) open their website instead.
-
-**When it mishears you.** Speech-to-text guesses names it doesn't know ("Kidduuu" came out as
-"Kid do" and "Kitya", "Amma" as "a month"). PocketPilot fixes this in four ways:
-- It remembers the chat names it sees in WhatsApp (`data/known_names.json`, never uploaded) and gives
-  them to Whisper as hints, so it hears them better next time.
-- A name that isn't found but *sounds like* one of your chats gets a question instead of an error:
-  "I couldn't find Kitya. Did you mean 1) Kidduuu 🎀?" Say "one" to carry on.
-- Common English mishearings of family names ("a month", "your mom", "Amah") try Amma.
-- Known slips are corrected before matching: "grid hub" → GitHub, "play dude in what's Spotify" → Spotify.
-The phone always shows what it heard in quotes, so you can see what went wrong.
-
-### Voice setup (one time)
-1. Install **Ollama** (free) from [ollama.com](https://ollama.com), then in PowerShell: `ollama pull qwen3:4b` (about 2.5 GB). It answers in about 4 s on a CPU (scored 20/20 on `scripts/check_ai.py`) because Ollama reuses its instructions between commands. The v3 screen explainer will also use `qwen3.5:4b`, which can see images. Without it, the fixed phrases above still work.
-2. `python -m pip install -r requirements.txt`. The first start downloads the Whisper speech model (about 145 MB) and the wake-word model (about 5 MB).
-3. Optional: copy `.env.example` to `.env` and set your home city (for "weather" with no city) and your GitHub repo URL (Wikipedia asks apps for a contact link).
-
-Use `python run.py --no-wake` to turn off the laptop mic, or `--no-voice` for touchpad only.
-
-## Touchpad (v1)
+## Touchpad
 
 | On your phone | On your laptop |
 | --- | --- |
@@ -135,65 +88,131 @@ Use `python run.py --no-wake` to turn off the laptop mic, or `--no-voice` for to
 
 The top bar shows the round-trip time to the laptop, so you can see the lag.
 
-## Quick start (Windows)
+## Voice commands
 
-You need **Python 3.11+** ([python.org](https://www.python.org/downloads/), tick "Add python.exe to PATH") and your phone on the **same Wi-Fi** as the laptop.
+Hold the **mic** on the phone and speak, or **slide it right to lock** and talk hands-free, then tap ✓ to send (slide left to cancel, like a WhatsApp voice note). You can also type in the command box, or say **"Hey Jarvis"** to the laptop and then your command. The reply shows on the phone and is spoken out loud.
 
-```powershell
-cd pocketpilot
-python -m pip install -r requirements.txt
-python run.py
-```
+| Say | What happens |
+| --- | --- |
+| "scroll down", "scroll up a lot", "click", "right click", "double click" | Mouse |
+| "type hello world", "press enter", "copy", "paste", "undo", "select all" | Keyboard |
+| "volume up", "mute", "pause", "next song" | Media keys |
+| "switch app", "show desktop" | Windows shortcuts |
+| "open Chrome / Edge / Notepad / Calculator / File Explorer / Settings / WhatsApp / Spotify / VS Code / Paint / Word / Excel / PowerPoint / Camera" | Opens that app |
+| "close the window" | Asks **Approve** on the phone first |
+| "show grid" → "click 14" | 96 numbered boxes over the screen; clicks the middle of box 14 |
+| "zoom 14" → "click 5" | Splits box 14 into 9 smaller boxes for tiny buttons, then clicks one |
+| "weather", "weather in Hyderabad", "when is sunset" | Open-Meteo forecast |
+| "air quality in Delhi" | AQI + simple advice |
+| "who is APJ Abdul Kalam", "tell me about the Taj Mahal" | Short Wikipedia summary |
+| "convert 100 dollars to rupees", "dollar rate" | Today's exchange rate (Frankfurter, no key) |
+| "define serendipity", "what does ephemeral mean" | Dictionary meaning + example (no key) |
+| "news", "news about ISRO" | Top headlines (free key from gnews.io in `.env`) |
+| "cricket score" | Live scores (free key from cricketdata.org in `.env`) |
+| "search YouTube for lofi", "search Amazon for a wireless mouse", "search GitHub for pocketpilot" | Opens the search results |
+| "play Dude", "play the song Kesariya" | Finds the song on YouTube |
+| "play Dude on Spotify" | Spotify search (in the Spotify app if installed, otherwise the Spotify web player) |
+| "go to GitHub", "open ChatGPT", "visit CodeChef", "go to github.com/Vardhansaigadde/PocketPilot" | Opens that website (40 popular sites by name, or any address) |
+| "ask ChatGPT how to reverse a list in Python" | Opens ChatGPT with your question |
+| "new tab", "next tab", "go back", "refresh", "address bar" | Browser shortcuts |
+| "close this tab", "reopen closed tab" | Closes the tab in a browser, Notepad or VS Code (never presses Ctrl+W in other apps, where it could close the whole window). Unsaved Notepad tabs: it tells you Notepad is asking to save and never answers for you |
+| "search for cricket score", "go to github" (with a browser in front) | Opens it in a **new tab of the browser you are using** (Chrome, Edge, Firefox...). With no browser in front it opens Edge |
+| "open Edge **then** type github.com **then** press enter" | Runs up to 5 commands in order, waiting for windows to open |
+| "open notepad and write my shopping list: milk, eggs and bread" | The AI plans simple steps once, then runs them one by one (shown on the phone) |
+| "what did I do today?", "what was I working on yesterday?" | Answers from a local history log (`data/history.db`, never uploaded); "clear my history" deletes it |
+| "open my laptop", "wake up" | Turns the laptop screen back on (if it's locked, unlock with face, fingerprint or PIN) |
+| "keep my laptop awake", "let my laptop sleep" | While PocketPilot runs it stops the laptop sleeping **when plugged in** (default), always, or never |
+| "stop" (or the **■** button) | Cancels everything |
 
-1. A QR code appears (in the terminal and as an image).
-2. Scan it with your phone camera and open the link.
-3. The first time, the phone says the connection **isn't private**. That's expected: PocketPilot makes its own certificate on your laptop. Tap **Advanced → Proceed**.
-4. If Windows asks about the firewall, allow **Private networks** only.
-5. Optional: in your phone browser menu, choose **Add to Home screen** so it opens like an app.
+Common phrases are matched instantly without AI (about 0.5 s from the phone mic). Anything else ("I want to listen to some lofi") goes to a small AI model running on your laptop through Ollama, which can only answer with one of the actions above. The model loads in the background when PocketPilot starts (up to a minute on a CPU), so it's ready by the time you speak. Apps that aren't installed (Spotify, WhatsApp) open their website instead.
 
-Or just double-click `start.bat` after installing the requirements.
+Multi-step tasks use **plan once, then run simple commands**: the AI turns your request into a short list like "open notepad", "type …", and each step goes through the normal checks (allow-list, blocked apps, Approve). An earlier "look, decide, act" loop was tested and dropped: on a CPU the 4B model took about 15 s per step and lost track of what it had done.
 
-To unpair every phone and make a new QR code: `python run.py --new-token`
+**Why keep-awake instead of waking from sleep?** While the laptop sleeps Windows pauses PocketPilot too, and a phone browser can't send Wake-on-LAN packets. So by default PocketPilot asks Windows not to sleep while it's charging (the screen still turns off), and "open my laptop" turns the screen back on. Nothing in Windows' settings is changed, and the request ends when PocketPilot stops. `POCKETPILOT_KEEP_AWAKE=always|charging|off` in `.env`.
 
-### Optional: remove the "not private" warning (recommended)
-PocketPilot runs over **HTTPS**, because phones only allow the microphone (voice commands) on secure pages. It makes its own certificates in `data/`, for free.
+**When it mishears you.** Speech-to-text guesses names it doesn't know ("Kidduuu" came out as "Kid do" and "Kitya", "Amma" as "a month"). PocketPilot fixes this in four ways:
+- It remembers the chat names it sees in WhatsApp (`data/known_names.json`, never uploaded) and gives them to Whisper as hints, so it hears them better next time.
+- A name that isn't found but *sounds like* one of your chats gets a question instead of an error: "I couldn't find Kitya. Did you mean 1) Kidduuu 🎀?" Say "one" to carry on.
+- Common English mishearings of family names ("a month", "your mom", "Amah") try Amma.
+- Known slips are corrected before matching: "grid hub" → GitHub, "play dude in what's Spotify" → Spotify.
 
-To make your phone trust them for good (Android):
-1. On the phone, open `https://<laptop-ip>:8765/pocketpilot-ca.crt` (the exact link is printed in the terminal) and download it.
-2. Go to **Settings → Security → More security settings → Install from device storage → CA certificate** (wording varies by phone), and pick the downloaded file.
-3. Reopen PocketPilot: no warning, and Add to Home screen works like a real app.
+The phone always shows what it heard in quotes, so you can see what went wrong.
 
-This certificate can **only** vouch for home-network addresses (192.168.x.x, 10.x.x.x, 172.16–31.x.x) and `localhost`, so it can't be used to fake real websites. If you change Wi-Fi, PocketPilot makes a new server certificate automatically and the phone keeps trusting it. You can remove it any time in the same Settings screen.
+## Smart click and the screen
 
-If you don't want HTTPS: `python run.py --http` (the touchpad works, voice won't).
+| Say | What happens |
+| --- | --- |
+| "click the Sign in button", "click Downloads", "right click on Documents", "double click My Pictures" | Finds that button, link or tab by its name and clicks it |
+| "play the second video", "open the first result", "click the 3rd link", "open the last result", "రెండో వీడియో ప్లే చెయ్యి" | On YouTube, Google or Bing: counts the videos or results **you can see right now**, top to bottom, and opens that one. Ads, the AI answer box and menus are skipped. After scrolling, "the second video" is the second one on screen |
+| "what's on my screen?" | Describes the screen (vision model, about 40 s) |
+| "summarize this page" | 2-3 sentence summary of the page you're on (about 30-40 s) |
+| "explain this error" | What the error on screen means and how to fix it (a few seconds) |
+| "read the screen" | Reads the visible text out loud (instant) |
 
-### If the phone can't connect
-- Phone and laptop must be on the same Wi-Fi. College and public Wi-Fi often block devices from talking to each other: use your **phone's hotspot** and connect the laptop to it.
-- Make sure the Windows Firewall prompt was allowed for Private networks. If you dismissed it, open *Windows Security → Firewall → Allow an app* and tick Python for Private.
-- Check the network is set to *Private* in Windows Wi-Fi settings, not *Public*.
-- After updating from an older version, the address changed from `http://` to `https://`: scan the QR code once more.
+How smart click finds things: first Windows **UI Automation** (the same list of buttons screen readers use, about 0.2 s), then Windows' built-in **OCR** (reads the text on screen, about 0.3 s) if the app doesn't share its buttons. If neither finds it, it says so and you can use the numbered grid. Names are matched the way speech-to-text hears them ("kidd u" finds the chat "Kidduuu", "log in" finds "Login"), but never across opposite words ("show" never clicks "Hide"); a close match is reported as "(closest match)". Very large windows, like a long WhatsApp chat, switch to OCR after 2 seconds. Buttons like Send, Delete, Pay or Sign in always wait for **Approve** on the phone.
+
+The screen explainer reads the window's text with Windows OCR and asks the local text model; "what's on my screen" sends a small screenshot to the local vision model (`qwen3.5:4b`). Screenshots stay in memory: never saved, never sent anywhere.
+
+## WhatsApp
+
+| Say | What happens |
+| --- | --- |
+| "message amma that I'll be late", "reply to Kidduuu saying OK" | Opens the chat and types the message; **sends only after you tap Approve** (Cancel clears the draft) |
+| "call amma", "video call amma on WhatsApp" | Opens the chat; **calls only after Approve** |
+| "open my chat with amma" | Opens the chat |
+
+WhatsApp Desktop is driven through its own button names (UI Automation), not by guessing where to click. Before sending or calling it checks that the chat header really is the person you named, and again right before it presses Enter or the call button. It never types unless WhatsApp is really in front.
+
+Two chats with the same name ("Amma ❤️" and "Amma")? It never guesses: it asks you to say **"amma heart"** or **"just amma"** (common emoji have spoken names: heart, ribbon, star, flower, crown...), or the number from the list, and the Approve card always shows the exact contact, emoji included. To make plain "amma" mean the ❤️ one, put `POCKETPILOT_CONTACTS=Amma ❤️` in `.env`; names listed there are also given to the speech model so it hears them right. Common Telugu family names (Amma, Nanna, Akka, Anna...) are known out of the box.
+
+## Telugu
+
+Tap **EN** next to the command box so it shows **తె**, then speak Telugu, or Telugu mixed with English. Replies come back in Telugu and the phone speaks them. Typed Telugu works with either setting.
+
+| Say | What happens |
+| --- | --- |
+| "నోట్‌ప్యాడ్ ఓపెన్ చెయ్యి", "notepad open cheyyi" | Opens Notepad |
+| "అమ్మకి కాల్ చెయ్యి", "ammaki call cheyyi" | Approve card for a WhatsApp call to Amma |
+| "అక్కకి హాయ్ అని మెసేజ్ పంపు" | Drafts "హాయ్" to Akka, sends after Approve ("రెండు" picks the 2nd Akka) |
+| "హైదరాబాద్‌లో వాతావరణం ఎలా ఉంది" | Hyderabad weather, answered in Telugu |
+| "యూట్యూబ్‌లో తెలుగు పాటలు పెట్టు" | YouTube search for తెలుగు పాటలు |
+| "రెండో వీడియో ప్లే చెయ్యి", "ట్యాబ్ క్లోజ్ చెయ్యి" | The second video on screen; close the tab |
+| "వాల్యూమ్ పెంచు", "కిందకి స్క్రోల్ చెయ్యి", "స్క్రోల్ డౌన్", "ఆపు" | Volume, scrolling, stop |
+
+How it works: a Telugu-trained Whisper model (IIT Madras' Telugu Whisper-small, Apache-2.0) turns speech into Telugu text. Common commands are matched by Telugu phrase rules in `agent/telugu.py` (instant, no AI): it strips Telugu case endings (అమ్మ**కి**), turns Telugu-script English words back into English (స్క్రోల్ డౌన్ → scroll down) and maps family and city names (అక్క → Akka, హైదరాబాద్ → Hyderabad). Anything else goes to the local AI with a transliterated hint. Replies use Telugu templates; the phone's own Android voice speaks them, because Windows has no Telugu voice. On a CPU it takes 3–5 s for a 6–10 s sentence, with 2–10 % character errors on clear Telugu speech.
 
 ## How it works
 
+```mermaid
+flowchart LR
+    subgraph Phone["Phone (browser app)"]
+        T[Touchpad + keyboard]
+        M[Mic / text box]
+        A[Approve card]
+    end
+    subgraph Laptop["Laptop (Python, all local)"]
+        S["Server (FastAPI)<br/>pairing token + allow-list"]
+        W["Whisper<br/>speech to text"]
+        R["Instant phrases<br/>English + Telugu"]
+        L["Local AI (Ollama)<br/>answers only in the command format"]
+        E["Executor<br/>mouse, keys, apps, skills"]
+        U["UI Automation + OCR<br/>finds buttons, results, chats"]
+    end
+    T -- "wss, same Wi-Fi" --> S
+    M -- audio / text --> S --> W --> R
+    R -- unknown phrase --> L --> E
+    R --> E
+    E <--> U
+    E -- "send, call, close, delete" --> A
+    A -- Approve --> E
 ```
-Phone (web app)  ──secure WebSocket (wss), same Wi-Fi, pairing token──►  Laptop server (FastAPI)
-                                                              │ validate message (allow-list)
-                                                              ▼
-                                                           Input control (pynput) ──► Windows
 
-Voice: phone mic / text box / "Hey Jarvis" ─► Whisper (speech → text, on the laptop)
-       ─► fast-path phrases, else Ollama (local AI, answers only in the command format)
-       ─► command checked against the allow-list ─► mouse, keys, apps, skills, grid
-       ─► risky ones wait for Approve on the phone
-```
-
-- **web/**: the phone app (plain HTML + JavaScript). Touches are batched to at most one message per screen frame to keep lag low.
-- **server/protocol.py**: every message must match a fixed schema (Pydantic). Unknown actions, huge movements and risky shortcuts are rejected before anything moves.
-- **server/pairing.py**: a random token in the QR code; connections without it are refused.
-- **server/certs.py**: makes a small local certificate authority and an HTTPS certificate for the laptop's Wi-Fi address, so the phone can use its mic.
-- **server/input_control.py**: turns messages into real mouse and keyboard actions. Released safely if the phone disconnects mid-drag.
-- **agent/**: the voice assistant. `commands.py` (every allowed action), `router.py` (instant phrases), `llm.py` (Ollama), `stt.py` (Whisper), `executor.py` (does the action), `approvals.py`, `grid.py`, `laptop_voice.py` (wake word), `apps.py` (the only apps it can open), `smart_click.py` (UI Automation + OCR finder), `screen.py` (capture + Windows OCR), `explainer.py` (summaries, errors, descriptions), `whatsapp.py` (messages and calls), `task_agent.py` (plan-once multi-step tasks), `memory.py` (history log).
-- **skills/**: weather, air quality, Wikipedia, web search, websites, currency and dictionary (no keys); news and cricket (free keys).
+- **web/**: the phone app (plain HTML + JavaScript, no framework). Touches are batched to at most one message per screen frame to keep lag low.
+- **server/**: `protocol.py` (every message must match a fixed schema; unknown actions, huge movements and risky shortcuts are rejected before anything moves), `pairing.py` (the random token in the QR code), `certs.py` (a small local certificate authority, so the phone can use its mic over HTTPS), `input_control.py` (real mouse and keyboard, released safely if the phone disconnects mid-drag).
+- **agent/**: the assistant.
+  - Understanding: `commands.py` (every allowed action), `router.py` (instant English phrases), `telugu.py` (Telugu rules and replies), `llm.py` (Ollama), `stt.py` (Whisper), `names.py` (learned WhatsApp names, sound-alike matching).
+  - Doing: `executor.py`, `approvals.py`, `apps.py` (the only apps it can open), `windows.py` (bring windows forward, which app is in front), `grid.py`, `smart_click.py` (UI Automation + OCR), `results.py` (the nth result or video on screen), `whatsapp.py`, `task_agent.py` (plan-once tasks), `screen.py` + `explainer.py` (reading the screen), `memory.py` (history log), `laptop_voice.py` (wake word).
+- **skills/**: weather, air quality, Wikipedia, web search, websites, currency, dictionary (no keys); news and cricket (free keys).
 
 ## Safety
 
@@ -202,7 +221,7 @@ Voice: phone mic / text box / "Hey Jarvis" ─► Whisper (speech → text, on t
 - The phone can only trigger actions on a fixed allow-list. It cannot run programs or commands.
 - The AI model never runs anything itself: its answer must match the command format exactly, or nothing happens. It can only open apps from a fixed list (no terminal, no PowerShell), and searches only open a results page.
 - Closing a window, sending a WhatsApp message, making a call, and clicking buttons like Send, Delete, Pay, Sign in, Close, Exit or End call all wait for **Approve** on the phone, and cancel themselves after 30 seconds.
-- Voice audio is processed on the laptop and never saved. Weather, air quality and Wikipedia are the only things that go to the internet, and they only send the place or topic.
+- Voice audio is processed on the laptop and never saved. The web skills (weather, air quality, Wikipedia, currency, dictionary, news, cricket) send only the place, topic, word or currency they need.
 - Websites always open as `https://` pages. Files, scripts and other kinds of links are refused.
 - Kill switch: the **■** button, saying "stop", or **Ctrl+C** in the terminal.
 
@@ -221,7 +240,9 @@ Real tasks run end to end on a CPU-only laptop (Intel i5-12450H, 16 GB RAM, no G
 
 Full table with times: [docs/eval.md](docs/eval.md). Nothing is sent, called, bought or deleted during the eval.
 
-The three misses were all "play the second video": YouTube puts ads between results, and in those runs only one real video was on screen, so PocketPilot said "I can only see 1 video" instead of clicking a guess. The local AI also scores 28/28 on open-ended phrases (`scripts/check_ai.py`).
+The three misses were all "play the second video": YouTube puts ads between results, and in those runs only one real video was on screen, so PocketPilot said "I can only see 1 video" instead of clicking a guess.
+
+The local AI on its own picks the right command for **32 of 33 open-ended phrases (97%)**, including refusing "transfer 500 rupees", "delete all the files" and "log into my bank account" (`scripts/check_ai.py`; 4 more of the 37 phrases are caught by the instant phrases first). The miss: "accept the cookies popup" became a plain click instead of clicking the Accept button.
 
 ## Development
 
@@ -232,7 +253,7 @@ python -m pytest
 
 Tests use a fake controller, fake internet and a fake AI model, so they never move your real mouse, open apps or need Ollama.
 
-To check the real local AI model on 20 open-ended phrases (including requests it must refuse, like payments or deleting files), with Ollama running:
+To check the real local AI model on 37 open-ended phrases (including requests it must refuse, like payments or deleting files), with Ollama running:
 
 ```powershell
 python scripts/check_ai.py
@@ -240,17 +261,21 @@ python scripts/check_ai.py
 
 It prints which command the model picks for each phrase, how long it took, and the overall accuracy. Nothing is executed.
 
+Phone test checklists for each version: [v2](docs/v2-commands.md), [v3](docs/v3-tests.md), [v4](docs/v4-tests.md), [v5](docs/v5-tests.md).
+
 ## Roadmap
 
 | Version | Adds |
 | --- | --- |
 | **v1 Touchpad** ✅ | Phone touchpad, keyboard, media keys, QR pairing |
-| **v2 Voice commands** ✅ | Phone mic + "Hey Jarvis" on the laptop ("Hey Pilot" later); open apps, weather, Edge/YouTube search, grid clicking |
+| **v2 Voice commands** ✅ | Phone mic + "Hey Jarvis" on the laptop; open apps, weather, search, websites, grid clicking |
 | **v3 Smart click + screen explainer** ✅ | "Click the Login button", "summarize this page", "explain this error" |
 | **v4 Task agent** ✅ | Multi-step tasks, WhatsApp messages **and calls** with Approve, memory of what you did, currency/dictionary/news/cricket |
-| **v5 Telugu** ✅ | Telugu and Telugu–English voice commands, Telugu replies |
+| **v5 Telugu** ✅ | Telugu and Telugu–English voice commands, Telugu replies; "the second video", tabs |
 | v6 Android app | Native app with haptics and a Wake-on-LAN button |
 | v7 Macros + MCP | "Watch me once" skills, MCP server for other AI apps |
+
+Details: [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## License
 

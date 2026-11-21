@@ -307,7 +307,7 @@ def fast_path(text: str) -> Command | None:
             )
 
     if m := _TYPE.match(t):  # original case kept for what gets typed
-        return TypeCmd(action="type", text=m.group("text").strip()[:500])
+        return TypeCmd(action="type", text=spoken_math(m.group("text").strip())[:500])
 
     if m := _PRESS.match(low):
         key = _KEY_NAMES.get(m.group("key").strip())
@@ -411,3 +411,29 @@ def split_steps(text: str) -> list[str]:
     """Split "open edge then type github.com then press enter" into separate commands."""
     parts = [p.strip(" ,.") for p in _THEN.split(text.strip()) if p.strip(" ,.")]
     return parts[:MAX_STEPS] if len(parts) > 1 else [text]
+
+
+# Spoken maths -> symbols, for typing into Calculator: "plus" -> "+", "12 times 3" -> "12*3".
+_MATH_WORDS = [
+    ("divided by", "/"), ("multiplied by", "*"), ("to the power of", "^"),
+    ("plus", "+"), ("minus", "-"), ("times", "*"), ("into", "*"), ("x", "*"), ("over", "/"),
+    ("equals", "="), ("equal", "="), ("point", "."), ("dot", "."), ("percent", "%"),
+    ("open bracket", "("), ("close bracket", ")"),
+]
+_MATH_TOKEN = re.compile(r"\d+(?:\.\d+)?|" + "|".join(re.escape(w) for w, _ in _MATH_WORDS) + r"|[+\-*/=.%^()]", re.I)
+
+
+def spoken_math(text: str) -> str:
+    """'plus' -> '+', '12 plus 30' -> '12+30'. Anything that isn't purely maths is typed as said."""
+    t = " ".join(text.lower().strip(" .?!").split())
+    if not t:
+        return text
+    if not re.search(r"\d", t):                         # no numbers: only a clear operator word
+        lone = {"plus": "+", "minus": "-", "times": "*", "multiplied by": "*", "divided by": "/",
+                "equals": "=", "percent": "%", "point": ".", "dot": "."}
+        return lone.get(t, text)
+    tokens = _MATH_TOKEN.findall(t)
+    if not tokens or _MATH_TOKEN.sub("", t).strip():     # some other words in there: leave it alone
+        return text
+    symbols = dict(_MATH_WORDS)
+    return "".join(symbols.get(tok, tok) for tok in tokens)

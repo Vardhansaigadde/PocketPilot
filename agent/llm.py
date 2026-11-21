@@ -92,6 +92,7 @@ PLAN_REQUEST = """PLAN MODE. Do not answer with an action. Split the request bel
 commands, in order. Each command must work on its own when spoken to PocketPilot, for example:
 "open notepad", "type hello world", "press enter", "go to github.com", "click Issues",
 "search youtube for lofi", "scroll down", "new tab", "message amma that I'm coming".
+For sums in Calculator type the whole sum at once with symbols, e.g. "type 7*6", then "press enter".
 Only include what the user asked for. Reply as {{"steps": ["...", "..."]}}.
 Request: {goal}"""
 

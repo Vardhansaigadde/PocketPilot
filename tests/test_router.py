@@ -174,3 +174,14 @@ def test_whatsapp_phrasings_from_real_use(said, contact, kind, text):
 def test_same_name_contacts_by_voice(said, contact, kind, text):
     cmd = fast_path(said)
     assert (cmd.contact, cmd.kind, cmd.text) == (contact, kind, text)
+
+
+
+@pytest.mark.parametrize("said, typed", [
+    ("type plus", "+"), ("type 12 plus 30", "12+30"), ("type 7 times 6", "7*6"), ("type 12 x 4", "12*4"),
+    ("type 100 divided by 4", "100/4"), ("type 3 point 5", "3.5"), ("type equals", "="),
+    ("type x", "x"), ("type into", "into"), ("type hello world", "hello world"),
+    ("type I am a plus size", "I am a plus size"), ("type 12", "12"), ("type call me at 5", "call me at 5"),
+])
+def test_spoken_maths_is_typed_as_symbols(said, typed):
+    assert fast_path(said).text == typed

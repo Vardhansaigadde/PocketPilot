@@ -8,6 +8,7 @@ don't touch the mouse while it runs. Nothing is sent, bought or deleted.
     python scripts/eval_agent.py              # every task, 3 runs each (~10 minutes)
     python scripts/eval_agent.py --runs 1     # quicker
     python scripts/eval_agent.py --list       # just show the tasks
+    python scripts/eval_agent.py --only 2,3   # re-run some tasks (docs/eval.md is left alone)
 
 Results go to docs/eval.md.
 """
@@ -66,7 +67,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--runs", type=int, default=3)
     parser.add_argument("--list", action="store_true")
+    parser.add_argument("--only", help="task numbers to run, e.g. 2,3 (see --list)")
+    parser.add_argument("--no-save", action="store_true", help="don't overwrite docs/eval.md")
     args = parser.parse_args()
+    tasks = TASKS
+    if args.only:
+        tasks = [TASKS[int(n) - 1] for n in args.only.split(",") if n.strip().isdigit()]
     if args.list:
         for i, t in enumerate(TASKS, 1):
             print(f"{i}. {t.said}")
@@ -83,14 +89,20 @@ def main() -> int:
     time.sleep(45)
     ctl = assistant.executor.ctl
     rows = []
-    for task in TASKS:
+    for task in tasks:
         ok_runs, secs = 0, []
         for _ in range(args.runs):
             t0 = time.perf_counter()
             msgs = assistant.handle_text(task.said)
-            time.sleep(2.5)
             reply = next((m for m in msgs if m.get("t") == "reply"), {})
-            worked = bool(reply.get("ok")) and task.check()
+            worked = False
+            if reply.get("ok"):
+                # check for up to 8 s: the first Edge/Calculator start of the day can be slow
+                for _ in range(16):
+                    time.sleep(0.5)
+                    if task.check():
+                        worked = True
+                        break
             secs.append(time.perf_counter() - t0)
             ok_runs += worked
             print(f"{'PASS' if worked else 'FAIL'} {secs[-1]:5.1f}s  {task.said!r}: {reply.get('text', '')[:80]}")
@@ -107,7 +119,8 @@ def main() -> int:
            "| Task | Success | Avg time |", "|---|---|---|"]
     out += [f"| {s} | {ok}/{n} | {t:.1f} s |" for s, ok, n, t in rows]
     out += ["", f"**Overall: {total}/{len(rows) * args.runs} ({100 * total / (len(rows) * args.runs):.0f}%)**", ""]
-    (ROOT / "docs" / "eval.md").write_text("\n".join(out), encoding="utf-8")
+    if not args.no_save and not args.only:
+        (ROOT / "docs" / "eval.md").write_text("\n".join(out), encoding="utf-8")
     print("\n".join(out))
     return 0
 

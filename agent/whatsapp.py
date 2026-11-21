@@ -23,6 +23,7 @@ from typing import Callable
 
 from server.input_control import Controller
 
+from .names import KnownNames, plain, sounds_like
 from .smart_click import (
     EMOJI_WORD_SET, Candidate, best_match, emoji_to_words, normalize, score, uia_candidates,
 )
@@ -35,6 +36,13 @@ MATCH = 0.85                 # how sure we must be that the open chat is the rig
 TIE = 0.05                   # chats scoring this close to the best one count as "also a match"
 # Section headers WhatsApp puts in search results (the normal chat list has none).
 SECTIONS = {"chats", "contacts", "groups", "messages", "channels", "communities"}
+SOUNDS_ALIKE = 0.7           # "Kitya" ~ "Kidduuu": good enough to ASK "did you mean", never to act
+# What English speech-to-text made of "Amma" in real use. Only tried when no chat matched.
+FAMILY_MISHEARD = {
+    "amah": "Amma", "amal": "Amma", "amalf": "Amma", "a month": "Amma", "a mark": "Amma", "a mine": "Amma",
+    "your mom": "Amma", "a ma": "Amma", "um ma": "Amma", "ama": "Amma", "mom": "Amma", "mummy": "Amma",
+    "dad": "Nanna", "father": "Nanna", "na na": "Nanna", "sister": "Akka", "aka": "Akka", "acka": "Akka",
+}
 SEARCH_WAIT_TRIES = 12       # x 0.5 s: how long to wait for search results to replace the chat list
 
 # A chat row is "<name> <time or day> <last message>": the name ends where the time starts.
@@ -91,6 +99,17 @@ class AmbiguousContact(WhatsAppError):
         self.names = names
         listed = " ".join(f"{i}) {n}" for i, n in enumerate(names, 1))
         super().__init__(f"Which {contact}? {listed}. Say the name or the number.")
+
+
+class DidYouMean(AmbiguousContact):
+    """No chat called that, but some sound alike ("Kitya" -> "Kidduuu 🎀"): ask, never guess."""
+
+    def __init__(self, contact: str, names: list[str]) -> None:
+        WhatsAppError.__init__(self)
+        self.contact = contact
+        self.names = names
+        listed = " ".join(f"{i}) {n}" for i, n in enumerate(names, 1))
+        self.args = (f"I couldn't find {contact}. Did you mean {listed}? Say the number or the name.",)
 
 
 @dataclass
@@ -239,7 +258,9 @@ class WhatsApp:
         sleep: Callable[[float], None] = time.sleep,
         contacts: list[str] | None = None,
         front: Callable[[int], bool] = is_front,
+        known: KnownNames | None = None,
     ) -> None:
+        self.known = known or KnownNames()      # chat names seen before (data/known_names.json)
         self.ctl = controller
         self.controls = controls
         self.windows = windows
@@ -266,6 +287,12 @@ class WhatsApp:
             best = max(self.contacts, key=lambda c: score(name, c))
             if score(name, best) >= 0.6:
                 return best
+        known = self.known.plain_names()
+        has_emoji_word = any(w in EMOJI_WORD_SET for w in name.lower().split())
+        if known and not has_emoji_word and name.lower() not in (k.lower() for k in known):
+            best = max(known, key=lambda c: score(name, c))
+            if score(name, best) >= 0.75 and len(best.split()) == len(name.split()):
+                return best                               # "Kiduu" -> "Kidduuu" (a chat seen before)
         return name
 
     def open_chat(self, contact: str) -> str:
@@ -275,6 +302,38 @@ class WhatsApp:
         the user to say "amma heart" or "just amma"."""
         exact = bool(_EXACT.match(contact.strip()))
         contact = self.resolve_contact(_EXACT.sub("", contact.strip()))
+        try:
+            return self._open_chat(contact, exact)
+        except AmbiguousContact:
+            raise
+        except WhatsAppError as exc:
+            if not str(exc).startswith("I couldn't find"):
+                raise
+            family = FAMILY_MISHEARD.get(" ".join(contact.lower().split()))
+            if family and not exact:                      # "Call a month" -> Amma
+                try:
+                    return self._open_chat(family, exact)
+                except WhatsAppError:
+                    pass
+            alike = self._sound_alike(contact)
+            if alike:
+                raise DidYouMean(contact, alike) from None
+            raise
+
+    def _sound_alike(self, contact: str) -> list[str]:
+        """Chats whose names sound like `contact`, best first (from names seen before)."""
+        scored = [(sounds_like(contact, n), n) for n in self.known.all()]
+        picked: list[str] = []
+        for s, n in sorted(scored, key=lambda x: -x[0]):
+            if s >= SOUNDS_ALIKE and plain(n).lower() not in (plain(x).lower() for x in picked):
+                picked.append(n)
+        return picked[:4]
+
+    def _learn(self, rows: list[Candidate]) -> None:
+        names = [name_part(clean_row(c.name)) for c in rows]
+        self.known.add([n for n in names if n.strip().lower() not in SECTIONS])
+
+    def _open_chat(self, contact: str, exact: bool) -> str:
         hwnd = self._window()
         search = self._search_box(hwnd)
         if search is None:
@@ -282,10 +341,13 @@ class WhatsApp:
         self._click(search)
         self._select_all()
         self._key("backspace")
-        before = self._row_names(hwnd)                    # the normal chat list
+        normal = self._rows(hwnd)                         # the normal chat list
+        before = [c.name for c in normal]
+        self._learn(normal)
         self._type(search_text(contact))
         # match on the row without "1 unread message" etc. in front of the name
         rows = [replace(c, name=clean_row(c.name)) for c in self._settled_rows(hwnd, before)]
+        self._learn(rows)
         if exact:                                         # "just amma": the name must be exactly that
             rows = [c for c in rows if normalize(name_part(c.name)) == normalize(contact)]
         row = best_match(contact, rows)

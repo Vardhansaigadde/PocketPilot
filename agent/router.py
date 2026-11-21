@@ -137,11 +137,31 @@ _simple("air quality|aqi|what's the air quality|what is the air quality|pollutio
         "|how's the air|hows the air", AirQualityCmd(action="air_quality"))
 
 
+# Words speech-to-text often gets wrong in commands (seen in the history log).
+_MISHEARD = [
+    (re.compile(r"\b(?:(?:grid|good|get|great|greet) ?hub|git hub)\b", re.I), "github"),
+    (re.compile(r"\b(?:(?:in|at|on) )?(?:what'?s|whats) spotify\b|\b(?:in|at) spotify$", re.I), "on spotify"),
+    (re.compile(r"\bdoudin\b", re.I), "dude on"),
+    (re.compile(r"^cal+am+a\b", re.I), "call amma"),               # "Calama" = "call amma"
+    (re.compile(r"\bu tube\b|\byou tube\b", re.I), "youtube"),
+    (re.compile(r"\bnote pad\b", re.I), "notepad"),
+]
+# "Message. Kid do. Hi." -> "Message Kid do, Hi": Whisper adds full stops after short words.
+_COMMAND_DOT = re.compile(r"^(message|msg|text|call|send|tell|whatsapp|play|open|search)[.,]\s+", re.I)
+
+
+def fix_mishearings(text: str) -> str:
+    for rx, good in _MISHEARD:
+        text = rx.sub(good, text)
+    return text
+
+
 def clean(text: str) -> str:
     """Trim filler words and punctuation that speech-to-text adds."""
     t = text.strip().strip(" .!?,;:\"'").strip()
     t = _FILLER_START.sub("", t)
     t = _FILLER_END.sub("", t)
+    t = fix_mishearings(_COMMAND_DOT.sub(r"\1 ", t))
     return t.strip(" .!?,;:").strip()
 
 
@@ -207,7 +227,7 @@ _WA_CALL = re.compile(
 # "message amma that I'll be late", "tell kidduuu on whatsapp that ...", "reply to amma saying ..."
 _WA_MSG = re.compile(
     r"^(?:message|text|whatsapp|send (?:a )?(?:whatsapp )?message to|reply to|tell)"
-    r" (?P<who>.+?)" + _ON_WA + r"(?: that| saying| to say|:|,) (?P<text>.+)$",
+    r" (?P<who>.+?)" + _ON_WA + r"(?: that| saying| to say|:|,|\.) (?P<text>.+)$",
     re.I | re.S,
 )
 # "send amma a message saying I'm coming"
@@ -354,6 +374,9 @@ def fast_path(text: str) -> Command | None:
         if m := rx.match(t):
             who = re.sub(r"\s+(?:on|in|via|over|through)$", "", m.group("who").strip(" ,."), flags=re.I)
             text = m.group("text").strip()
+            first = re.match(r"(?P<e>\w+)[.,!]\s+(?P<rest>.+)$", text, re.S)
+            if first and first.group("e").lower() in EMOJI_WORD_SET:
+                who, text = f"{who} {first.group('e').lower()}", first.group("rest").strip()
             if text.lower().strip(" .!") in EMOJI_WORD_SET:   # "message amma heart": that's the name
                 return WhatsAppCmd(action="whatsapp", contact=f"{who} {text.strip(' .!')}"[:60], kind="open")
             if who and text:

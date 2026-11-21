@@ -112,6 +112,7 @@ def build_assistant(controller, args):  # noqa: ANN001, ANN201 - kept simple for
         from agent.explainer import ScreenExplainer
         from agent.grid import TkGrid
         from agent.llm import OllamaPlanner
+        from agent.names import KnownNames
         from agent.keep_awake import KeepAwake, screen_locked
         from agent.memory import Memory
         from agent.whatsapp import WhatsApp
@@ -138,14 +139,15 @@ def build_assistant(controller, args):  # noqa: ANN001, ANN201 - kept simple for
     awake = KeepAwake(cfg.keep_awake)       # no sleep while charging, so the phone can always connect
     awake.start()
     memory = Memory(DATA / "history.db")   # local only; "clear my history" deletes it
+    known = KnownNames(DATA / "known_names.json")   # WhatsApp chat names, to fix mishearings
     clicker = SmartClicker()
     executor = Executor(controller, Approvals(), skills=skills, grid=TkGrid(),
                         clicker=clicker, screen=explainer,
                         memory=memory, summarize=explainer.summarize_history,
-                        whatsapp=WhatsApp(controller, contacts=list(cfg.contacts)),
+                        whatsapp=WhatsApp(controller, contacts=list(cfg.contacts), known=known),
                         awake=awake, locked=screen_locked)
     planner.warm_up()
-    transcriber = WhisperTranscriber(cfg.whisper_model, names=cfg.contacts,
+    transcriber = WhisperTranscriber(cfg.whisper_model, names=cfg.contacts, known=known,
                                      telugu_model=cfg.telugu_whisper)
     transcriber.preload()
     print(f"  Voice: Whisper {cfg.whisper_model}, AI model {planner.model} (Ollama)"

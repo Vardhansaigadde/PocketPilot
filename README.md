@@ -94,6 +94,16 @@ Hold the **mic** on the phone and speak, or **slide it right to lock** and talk 
 
 Common phrases are matched instantly without AI (about 0.5 s from the phone mic). Anything else ("I want to listen to some lofi") goes to a small AI model running on your laptop through Ollama, which can only answer with one of the actions above. The model loads in the background when PocketPilot starts (up to a minute on a CPU), so it's ready by the time you speak. Apps that aren't installed (Spotify, WhatsApp) open their website instead.
 
+**When it mishears you.** Speech-to-text guesses names it doesn't know ("Kidduuu" came out as
+"Kid do" and "Kitya", "Amma" as "a month"). PocketPilot fixes this in four ways:
+- It remembers the chat names it sees in WhatsApp (`data/known_names.json`, never uploaded) and gives
+  them to Whisper as hints, so it hears them better next time.
+- A name that isn't found but *sounds like* one of your chats gets a question instead of an error:
+  "I couldn't find Kitya. Did you mean 1) Kidduuu 🎀?" Say "one" to carry on.
+- Common English mishearings of family names ("a month", "your mom", "Amah") try Amma.
+- Known slips are corrected before matching: "grid hub" → GitHub, "play dude in what's Spotify" → Spotify.
+The phone always shows what it heard in quotes, so you can see what went wrong.
+
 ### Voice setup (one time)
 1. Install **Ollama** (free) from [ollama.com](https://ollama.com), then in PowerShell: `ollama pull qwen3:4b` (about 2.5 GB). It answers in about 4 s on a CPU (scored 20/20 on `scripts/check_ai.py`) because Ollama reuses its instructions between commands. The v3 screen explainer will also use `qwen3.5:4b`, which can see images. Without it, the fixed phrases above still work.
 2. `python -m pip install -r requirements.txt`. The first start downloads the Whisper speech model (about 145 MB) and the wake-word model (about 5 MB).

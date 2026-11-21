@@ -410,6 +410,8 @@ _REPLIES: list[tuple[str, Any]] = [
     (r"Which (?P<x>.+?)\? (?P<list>.+)\. Say the name or the number\.",
      "ఏ {x}? {list}. పేరు లేదా నంబర్ చెప్పండి."),
     (r"I couldn't find (?P<x>.+) in WhatsApp\.", "వాట్సాప్‌లో {x} కనిపించలేదు."),
+    (r"I couldn't find (?P<x>.+?)\. Did you mean (?P<list>.+)\? Say the number or the name\.",
+     "{x} కనిపించలేదు. మీ ఉద్దేశం {list}? నంబర్ లేదా పేరు చెప్పండి."),
     (r"I couldn't find (?P<x>.+) on the screen\..*", "స్క్రీన్ మీద {x} కనిపించలేదు. షో గ్రిడ్ అని చెప్పండి."),
     (r"WhatsApp isn't open\..*", "వాట్సాప్ తెరిచి లేదు. ముందు వాట్సాప్ తెరవండి."),
     (r"Closed the window\.", "విండో మూసేశాను."),

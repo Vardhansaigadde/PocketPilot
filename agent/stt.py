@@ -25,9 +25,14 @@ FAMILY = ("Amma", "Nanna", "Appa", "Akka", "Anna", "Chelli", "Thammudu", "Ammamm
           "Mama", "Atta", "Babai", "Pinni")
 
 
+# Words Whisper should prefer when it isn't sure (it wrote "grid hub" for GitHub).
+HOTWORDS = "WhatsApp GitHub Spotify YouTube Notepad Edge Chrome ChatGPT CodeChef Amma Nanna Akka"
+MAX_HINT_NAMES = 25
+
+
 def build_hint(names: tuple[str, ...] | list[str] = ()) -> str:
     """The hint plus WhatsApp-style sentences with the user's contact names."""
-    people = [n for n in (*names, *FAMILY) if n][:20]
+    people = list(dict.fromkeys(n for n in (*names, *FAMILY) if n))[:MAX_HINT_NAMES]
     return HINT + " Call " + ", ".join(people) + " on WhatsApp. Message Amma that I'm coming."
 
 
@@ -70,8 +75,10 @@ TELUGU_MODEL = "ukta-app/whisper-telugu-ct2"
 class WhisperTranscriber:
     def __init__(self, model_size: str = "base.en", threads: int = 4,
                  names: tuple[str, ...] | list[str] = (),
-                 telugu_model: str = TELUGU_MODEL) -> None:
+                 telugu_model: str = TELUGU_MODEL, known: Any = None) -> None:
         self.model_size = model_size
+        self.names = tuple(names)
+        self.known = known         # names.KnownNames: WhatsApp chat names seen so far
         self.telugu_model = telugu_model
         self.threads = threads
         self.hint = build_hint(names)
@@ -112,9 +119,24 @@ class WhisperTranscriber:
             language, hint = "te", None         # the English hint would pull it to English
         else:
             language = "en" if self.model_size.endswith(".en") else None
-            hint = self.hint
+            hint = self.current_hint()
+        extra = {"hotwords": self.hotwords()} if lang != "te" else {}
         segments, _info = model.transcribe(
             source, language=language, beam_size=1, vad_filter=True,
-            initial_prompt=hint, condition_on_previous_text=False,
+            initial_prompt=hint, condition_on_previous_text=False, **extra,
         )
         return " ".join(s.text.strip() for s in segments).strip()
+
+    def learned(self) -> list[str]:
+        """Chat names seen in WhatsApp (without emoji), most recent first."""
+        try:
+            return self.known.plain_names()[:MAX_HINT_NAMES] if self.known is not None else []
+        except Exception:  # hints must never break speech-to-text
+            return []
+
+    def current_hint(self) -> str:
+        """The hint with your contact names: from .env first, then the chats WhatsApp showed."""
+        return build_hint([*self.names, *self.learned()])
+
+    def hotwords(self) -> str:
+        return " ".join(dict.fromkeys([*HOTWORDS.split(), *self.names, *self.learned()[:15]]))

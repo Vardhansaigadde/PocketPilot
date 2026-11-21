@@ -170,6 +170,14 @@ Voice: phone mic / text box / "Hey Jarvis" ─► Whisper (speech → text, on t
 - Websites always open as `https://` pages. Files, scripts and other kinds of links are refused.
 - Kill switch: the **■** button, saying "stop", or **Ctrl+C** in the terminal.
 
+## How well it works
+
+Real tasks run end to end on a CPU-only laptop (Intel i5-12450H, 16 GB RAM, no GPU), 3 runs each, with `python scripts/eval_agent.py`:
+
+**22 / 24 tasks succeeded (92%)**: Notepad typing, Calculator sums planned by the local AI, opening websites and searches, currency and dictionary answers. Full table: [docs/eval.md](docs/eval.md).
+
+The two misses were browser runs where another window took the focus back as Edge opened; PocketPilot now says in its reply when a page opens behind something. The local AI also scores 28/28 on open-ended phrases (`scripts/check_ai.py`).
+
 ## Development
 
 ```powershell

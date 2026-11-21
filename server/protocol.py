@@ -31,6 +31,8 @@ HOTKEYS = Literal[
     "new_tab",       # Ctrl+T
     "next_tab",      # Ctrl+Tab
     "prev_tab",      # Ctrl+Shift+Tab
+    "close_tab",     # Ctrl+W (only in apps with tabs, checked by the executor)
+    "reopen_tab",    # Ctrl+Shift+T
     "back",          # Alt+Left
     "forward",       # Alt+Right
     "refresh",       # F5

@@ -23,7 +23,7 @@ from skills.websites import resolve as resolve_site
 
 from .apps import find_app
 from .commands import (
-    ClickCmd, Command, GoToCmd, GridClickCmd, GridCmd, MediaCmd, NewsCmd, OpenAppCmd, ScrollCmd,
+    ClickCmd, Command, GoToCmd, HotkeyCmd, GridClickCmd, GridCmd, MediaCmd, NewsCmd, OpenAppCmd, ScrollCmd,
     SearchCmd, SmartClickCmd, StopCmd, WakeScreenCmd, WeatherCmd, WhatsAppCmd,
 )
 
@@ -269,6 +269,14 @@ def to_command(text: str) -> Command | None:
     if x.match(r"(?:aapu|aagu|aapeyi|aapandi|stop)(?: " + _DO + ")?"):
         return StopCmd(action="stop")
 
+    # tabs: "tab close cheyyi", "ee tab mooseyyi", "tab malli open cheyyi", "kotta tab"
+    if x.match(r"(?:ee )?tab (?:close|mooseyyi|mooseyi|moosey|moosivey|moosiveyi|moosu)(?: " + _DO + ")?"):
+        return HotkeyCmd(action="hotkey", combo="close_tab")
+    if x.match(r"(?:(?:aa|close chesina) )?tab (?:mallee|malli) (?:open|teru|terichi)(?: " + _DO + ")?"):
+        return HotkeyCmd(action="hotkey", combo="reopen_tab")
+    if x.match(r"(?:kotta|new) tab(?: (?:open|teru))?(?: " + _DO + ")?"):
+        return HotkeyCmd(action="hotkey", combo="new_tab")
+
     # the nth result or video on screen
     if m := x.match(r"(?P<ord>" + "|".join(_ORDINALS) + r") (?P<kind>" + "|".join(_RESULT_KINDS) + r")"
                     r"(?: (?:play|open|click|pettu|choodu|chudu|chupinchu|select))?(?: " + _DO + ")?"):
@@ -404,7 +412,13 @@ def _weather_te(m: re.Match) -> str:
 
 # (English reply pattern, Telugu reply or function). First match wins.
 _REPLIES: list[tuple[str, Any]] = [
-    (r"Opening the last (?P<k>video|result): (?P<x>.+)\.",
+    (r"Closed the tab\.", "ట్యాబ్ మూసేశాను."),
+    (r"This tab has unsaved changes.*", "ఈ ట్యాబ్‌లో సేవ్ చేయని మార్పులు ఉన్నాయి. సేవ్ చేయాలా అని అడుగుతోంది, ల్యాప్‌టాప్‌లో ఎంచుకోండి. లేదా ప్రెస్ ఎస్కేప్ అని చెప్పండి."),
+    (r"Reopened the last closed tab\.", "మూసిన ట్యాబ్ మళ్ళీ తెరిచాను."),
+    (r"New tab\.", "కొత్త ట్యాబ్ తెరిచాను."),
+    (r"This window has no tabs I can close\..*", "ఈ విండోలో ట్యాబ్స్ లేవు. క్లోజ్ విండో అని చెప్పండి."),
+    (r"Searching (?P<site>.+?) for (?P<x>.+) in a new tab\.", "కొత్త ట్యాబ్‌లో {site}లో {x} వెతుకుతున్నాను."),
+    (r"Opening (?P<x>.+) in a new tab\.", "కొత్త ట్యాబ్‌లో {x} తెరుస్తున్నాను."),    (r"Opening the last (?P<k>video|result): (?P<x>.+)\.",
      lambda m: f"చివరి {'వీడియో' if m['k'] == 'video' else 'రిజల్ట్'} తెరుస్తున్నాను: {m['x']}."),
     (r"Opening the (?P<n>\d+)\w\w (?P<k>video|result): (?P<x>.+)\.",
      lambda m: f"{m['n']}వ {'వీడియో' if m['k'] == 'video' else 'రిజల్ట్'} తెరుస్తున్నాను: {m['x']}."),

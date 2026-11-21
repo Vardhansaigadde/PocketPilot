@@ -20,6 +20,7 @@ from . import apps
 from .approvals import Approvals, Pending
 from .memory import Memory, describe
 from .smart_click import is_risky
+from . import windows
 from .commands import (
     GRID_CELLS, AirQualityCmd, ClickCmd, CricketCmd, CurrencyCmd, DefineCmd, NewsCmd, CloseWindowCmd, Command, GoToCmd, GridClickCmd, GridCmd,
     ForgetCmd, GridZoomCmd, KeepAwakeCmd, MemoryCmd, TaskCmd, WakeScreenCmd, WhatsAppCmd,
@@ -29,6 +30,13 @@ from .commands import (
 )
 
 log = logging.getLogger("pocketpilot.executor")
+
+
+def _front_title() -> str:
+    try:
+        return windows.front_title()
+    except Exception:  # pragma: no cover - non-Windows
+        return ""
 
 SCROLL_SIGN = {"up": 1, "down": -1}   # Windows: positive wheel = up
 
@@ -121,6 +129,7 @@ _SAY_HOTKEY = {
     "show_desktop": "Showing the desktop.", "copy": "Copied.", "paste": "Pasted.", "cut": "Cut.",
     "undo": "Undone.", "select_all": "Selected all.",
     "new_tab": "New tab.", "next_tab": "Next tab.", "prev_tab": "Previous tab.",
+    "close_tab": "Closed the tab.", "reopen_tab": "Reopened the last closed tab.",
     "back": "Going back.", "forward": "Going forward.", "refresh": "Refreshing.",
     "address_bar": "Address bar. Say type and the address.",
 }
@@ -155,7 +164,11 @@ class Executor:
         awake: Any = None,
         locked: Callable[[], bool] = lambda: False,
         clock: Callable[[], float] = time.monotonic,
+        front: Callable[[], str] | None = None,
+        sleep: Callable[[float], None] = time.sleep,
     ) -> None:
+        self.front = front or _front_title   # title of the window in front (which app is it?)
+        self.sleep = sleep
         self.ctl = controller
         self.approvals = approvals
         self.skills = skills
@@ -198,6 +211,8 @@ class Executor:
             self.ctl.media(cmd.key)
             return Outcome(_SAY_MEDIA[cmd.key])
         if isinstance(cmd, HotkeyCmd):
+            if cmd.combo in ("close_tab", "reopen_tab"):
+                return self._tab(cmd.combo)
             self.ctl.hotkey(cmd.combo)
             return Outcome(_SAY_HOTKEY[cmd.combo])
         if isinstance(cmd, OpenAppCmd):
@@ -252,6 +267,8 @@ class Executor:
                 return Outcome(self.skills.air_quality(cmd.place))
             if isinstance(cmd, WikiCmd):
                 return Outcome(self.skills.wiki(cmd.topic))
+            if isinstance(cmd, (SearchCmd, GoToCmd)) and (here := self._in_this_browser(cmd)) is not None:
+                return here
             if isinstance(cmd, GoToCmd):
                 return Outcome(self.skills.open_site(cmd.site))
             if isinstance(cmd, CurrencyCmd):
@@ -378,6 +395,48 @@ class Executor:
             pending = self.approvals.request(f'Click "{name}"?', click)
             return Outcome(f"Approve on your phone to click {name}.", approval=pending)
         return Outcome(click())
+
+    def _tab(self, combo: str) -> Outcome:
+        """Ctrl+W closes a TAB only in browsers, Notepad and VS Code. In other apps it can
+        close the whole window (File Explorer), so it isn't pressed there."""
+        title = self.front()
+        if combo == "close_tab" and not windows.has_tabs(title):
+            return Outcome("This window has no tabs I can close. Say close the window instead.", ok=False)
+        if combo == "reopen_tab" and not windows.is_browser(title):
+            return Outcome("I can reopen closed tabs in a browser only.", ok=False)
+        self.ctl.hotkey(combo)
+        if combo == "close_tab" and windows.unsaved(title):
+            # Notepad / VS Code ask "Do you want to save?" first. Never answer that for the user.
+            return Outcome("This tab has unsaved changes, so it's asking whether to save. Answer on the laptop, "
+                           "or say press escape to keep it open.")
+        return Outcome(_SAY_HOTKEY[combo])
+
+    def _in_this_browser(self, cmd: SearchCmd | GoToCmd) -> Outcome | None:
+        """A browser is in front: open the search (or site) in a new tab of THAT browser
+        (Chrome, Firefox, Edge...) instead of a new Edge window. None = use the usual way."""
+        from skills import web_search, websites
+
+        if not windows.is_browser(self.front()):
+            return None
+        if isinstance(cmd, SearchCmd):
+            if cmd.site == "spotify" and self.app_available("spotify:"):
+                return None                              # the Spotify app handles it
+            url = web_search.search_url(cmd.site, cmd.query, amazon_domain=self.amazon_domain())
+            say = web_search.spoken(cmd.site, cmd.query)
+        else:
+            url = websites.resolve(cmd.site)
+            if url is None:
+                return None                              # the skill explains what it doesn't know
+            say = f"Opening {websites.label(url)}."
+        self.ctl.hotkey("new_tab")
+        self.sleep(0.5)                                  # the new tab's address bar takes focus
+        self.ctl.type_text(url)
+        self.ctl.key("delete")                           # drop any address the browser suggested after it
+        self.ctl.key("enter")
+        return Outcome(say[:-1] + " in a new tab.")
+
+    def amazon_domain(self) -> str:
+        return getattr(self.skills, "amazon_domain", None) or "www.amazon.in"
 
     def _open_result(self, cmd: OpenResultCmd) -> Outcome:
         """'play the second video', 'open the first result': counted among what is on screen now."""

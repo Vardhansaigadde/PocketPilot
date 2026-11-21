@@ -77,6 +77,30 @@ def bring_front(match: Callable[[str], bool], wait_s: float = 4.0,
         sleep(0.25)
 
 
+_BROWSERS = ("microsoft edge", "google chrome", "mozilla firefox", "brave", "opera", "vivaldi")
+# Apps where Ctrl+W closes a tab (and asks to save first), not the whole window
+_TABBED = (*_BROWSERS, "notepad", "visual studio code")
+
+
+def _plain(title: str) -> str:
+    return title.replace("\u200b", "").strip().lower()      # Edge puts a zero-width space in its name
+
+
+def is_browser(title: str) -> bool:
+    """'kesariya - YouTube - Personal - Microsoft Edge' -> True."""
+    return _plain(title).endswith(_BROWSERS)
+
+
+def has_tabs(title: str) -> bool:
+    return _plain(title).endswith(_TABBED)
+
+
+def unsaved(title: str) -> bool:
+    """Notepad shows '*notes - Notepad', VS Code '● notes.py - Visual Studio Code' for unsaved work."""
+    t = title.strip()
+    return not is_browser(t) and (t.startswith("*") or t.startswith("●"))
+
+
 def is_edge(title: str) -> bool:
     t = title.replace("​", "").lower()             # Edge puts a zero-width space in its name
     return t.endswith("microsoft edge")

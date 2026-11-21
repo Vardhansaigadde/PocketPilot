@@ -97,6 +97,11 @@ _simple("hide grid|hide the grid|grid off|close grid|close the grid|hide numbers
 _simple("new tab|open a new tab|open new tab|open a tab", HotkeyCmd(action="hotkey", combo="new_tab"))
 _simple("next tab|switch tab|switch tabs|go to the next tab", HotkeyCmd(action="hotkey", combo="next_tab"))
 _simple("previous tab|last tab|go to the previous tab", HotkeyCmd(action="hotkey", combo="prev_tab"))
+_simple("close tab|close the tab|close this tab|close current tab|close the current tab|close that tab"
+        "|close this page|close the page", HotkeyCmd(action="hotkey", combo="close_tab"))
+_simple("reopen tab|reopen the tab|reopen closed tab|reopen the closed tab|reopen the last tab"
+        "|reopen last tab|undo close tab|bring back the tab|bring back that tab|open the closed tab again",
+        HotkeyCmd(action="hotkey", combo="reopen_tab"))
 _simple("go back|back|previous page|go to the previous page|go back a page",
         HotkeyCmd(action="hotkey", combo="back"))
 _simple("go forward|forward|next page|go forward a page", HotkeyCmd(action="hotkey", combo="forward"))

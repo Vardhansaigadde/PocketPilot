@@ -99,6 +99,8 @@ class PynputController:
             "new_tab": [K.ctrl, "t"],
             "next_tab": [K.ctrl, K.tab],
             "prev_tab": [K.ctrl, K.shift, K.tab],
+            "close_tab": [K.ctrl, "w"],
+            "reopen_tab": [K.ctrl, K.shift, "t"],
             "back": [K.alt, K.left],
             "forward": [K.alt, K.right],
             "refresh": [K.f5],

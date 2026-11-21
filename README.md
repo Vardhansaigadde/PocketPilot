@@ -90,6 +90,8 @@ Hold the **mic** on the phone and speak, or **slide it right to lock** and talk 
 | "go to GitHub", "open ChatGPT", "visit CodeChef", "go to github.com/Vardhansaigadde/PocketPilot" | Opens that website (40 popular sites by name, or any address) |
 | "ask ChatGPT how to reverse a list in Python" | Opens ChatGPT with your question |
 | "new tab", "next tab", "go back", "refresh", "address bar" | Browser shortcuts |
+| "close this tab", "reopen closed tab" | Closes the tab in a browser, Notepad or VS Code (never presses Ctrl+W in other apps, where it could close the whole window). Unsaved Notepad tabs: it tells you Notepad is asking to save and never answers for you |
+| "search for cricket score", "go to github" (with a browser in front) | Opens it in a **new tab of the browser you are using** (Chrome, Edge, Firefox...). With no browser in front it opens Edge as before |
 | "open Edge **then** type github.com **then** press enter" | Runs up to 5 commands in order, waiting for windows to open |
 | "stop" (or the **■** button) | Cancels everything |
 

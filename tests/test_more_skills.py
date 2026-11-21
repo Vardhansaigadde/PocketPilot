@@ -67,8 +67,41 @@ def test_news_top_and_topic():
 
 
 def test_news_bad_key_and_limit():
+    import httpx
+
+    from skills import news as news_mod
+    from skills.common import SkillError
+
     assert "didn't work" in skills({"gnews.io": 401}, gnews_key="bad").news(None)
-    assert "limit" in skills({"gnews.io": 429}, gnews_key="k").news(None)
+    always_busy = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(429)))
+    try:
+        news_mod.headlines(always_busy, "k", None, sleep=lambda s: None)
+        raise AssertionError("expected the limit message")
+    except SkillError as exc:
+        assert "limit" in str(exc)
+
+
+def test_news_retries_once_after_a_too_fast_request():
+    import httpx
+
+    from skills import news as news_mod
+
+    calls = []
+
+    def handler(request):
+        calls.append(1)
+        return httpx.Response(429) if len(calls) == 1 else httpx.Response(200, json=NEWS)
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    out = news_mod.headlines(client, "k", None, sleep=lambda s: None)
+    assert out.startswith("Top news: 1)") and len(calls) == 2
+
+
+def test_cricket_team_names_are_capitalised():
+    data = {"status": "success", "data": [{"name": "Sri Lanka A vs Hong Kong", "matchStarted": True,
+            "matchEnded": False, "status": "SL A opt to bat",
+            "score": [{"inning": "sri lanka a Inning 1", "r": 165, "w": 2, "o": 31.5}]}]}
+    assert "Sri Lanka A 165/2 (31.5 ov)" in skills({"cricapi.com": data}, cricket_key="k").cricket()
 
 
 def test_cricket_needs_a_key():

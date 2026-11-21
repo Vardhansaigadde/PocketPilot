@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 import httpx
 from pydantic import BaseModel, Field
 
@@ -18,19 +20,25 @@ class NewsInput(BaseModel):
     topic: str | None = Field(default=None, max_length=80)
 
 
-def headlines(client: httpx.Client, key: str | None, topic: str | None = None, country: str = "in") -> str:
+def headlines(client: httpx.Client, key: str | None, topic: str | None = None, country: str = "in",
+              sleep=time.sleep) -> str:
     if not key:
         raise SkillError(NEEDS_KEY)
     q = NewsInput(topic=(topic or "").strip() or None)
     params = {"lang": "en", "max": 5, "apikey": key}
-    if q.topic:
-        r = client.get(SEARCH_URL, params={**params, "q": q.topic})
-    else:
-        r = client.get(TOP_URL, params={**params, "country": country})
+    def ask() -> httpx.Response:
+        if q.topic:
+            return client.get(SEARCH_URL, params={**params, "q": q.topic})
+        return client.get(TOP_URL, params={**params, "country": country})
+
+    r = ask()
+    if r.status_code == 429:          # the free plan also allows only ~1 request a second
+        sleep(1.5)
+        r = ask()
     if r.status_code in (401, 403):
         raise SkillError("The news key didn't work. Check POCKETPILOT_GNEWS_KEY in .env.")
     if r.status_code == 429:
-        raise SkillError("The free news limit for today is used up. Try again tomorrow.")
+        raise SkillError("The news service says the free limit is used up for now (100 a day). Try again later.")
     r.raise_for_status()
     titles = [a.get("title", "").strip() for a in r.json().get("articles", []) if a.get("title")]
     if not titles:

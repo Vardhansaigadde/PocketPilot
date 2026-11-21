@@ -13,7 +13,10 @@ NEEDS_KEY = ("Cricket scores need a free key: sign up at cricketdata.org, then p
 
 
 def _innings(s: dict) -> str:
-    return f"{s.get('inning', '').replace(' Inning 1', '').replace(' Inning 2', '')} {s.get('r', 0)}/{s.get('w', 0)} ({s.get('o', 0)} ov)"
+    team = s.get("inning", "").replace(" Inning 1", "").replace(" Inning 2", "").replace(" inning 1", "").replace(" inning 2", "")
+    if team.islower():
+        team = team.title()                                  # the API sometimes sends "sri lanka a"
+    return f"{team} {s.get('r', 0)}/{s.get('w', 0)} ({s.get('o', 0)} ov)"
 
 
 def scores(client: httpx.Client, key: str | None) -> str:

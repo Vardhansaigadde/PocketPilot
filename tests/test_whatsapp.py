@@ -1,5 +1,7 @@
 """WhatsApp flow with a fake WhatsApp window: nothing is ever really sent or dialled."""
 
+from dataclasses import replace
+
 import pytest
 
 from agent.approvals import Approvals
@@ -395,10 +397,32 @@ def test_rows_that_only_mention_the_name_are_not_options():
     def controls(hwnd):
         out = real(hwnd)
         if wa.searched:
-            out.append(c("1 unread message from Akka group", "DataItem", 100, 900))
+            out.append(c("12 Yesterday akka sent a photo", "DataItem", 100, 900))   # name is just "12"
         return out
 
     w.controls = controls
     with pytest.raises(Exception) as err:
         w.open_chat("akka")
     assert err.value.names == ["Sharmila Akka", "Yamini Akka"]
+
+
+
+def test_main_contact_with_unread_messages_is_found():
+    """'Akka 💝 🥰' with news is labelled '1 unread message Akka 💝 🥰 ...' by WhatsApp."""
+    w, wa, _ = make(contacts=("Akka 💝 🥰", "Sharmila Akka", "Yamini Akka"))
+    real = wa.controls
+
+    def controls(hwnd):
+        out = real(hwnd)
+        return [replace(x, name="1 unread message " + x.name) if x.name.startswith("Akka 💝") else x for x in out]
+
+    w.controls = controls
+    assert w.open_chat("akka") == "Akka 💝 🥰"               # the main Akka, no question asked
+
+
+def test_name_part_skips_unread_and_pinned_labels():
+    from agent.whatsapp import name_part
+
+    assert name_part("1 unread message Akka 💝 🥰 Yesterday hi") == "Akka 💝 🥰"
+    assert name_part("3 unread messages Akka 10:30 pm ok") == "Akka"
+    assert name_part("Pinned chat Amma ❤️ Yesterday") == "Amma ❤️"

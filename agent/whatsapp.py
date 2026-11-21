@@ -18,7 +18,7 @@ import ctypes
 import logging
 import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Callable
 
 from server.input_control import Controller
@@ -43,8 +43,22 @@ _ROW_END = re.compile(
 _EXACT = re.compile(r"^(?:just|only|plain|normal)\s+", re.I)
 
 
+# Bits WhatsApp puts BEFORE the name in a row's label when a chat has news, e.g.
+# "1 unread message Akka 💝 🥰 Yesterday ...", "Pinned chat ...", "Muted ...".
+_ROW_START = re.compile(
+    r"^(?:\s*(?:\d+\s+unread\s+messages?|unread|pinned(?:\s+chat)?|muted(?:\s+chat)?|archived|new)\s*[,.:]?\s*)+",
+    re.I,
+)
+
+
+def clean_row(row: str) -> str:
+    """'1 unread message Akka 💝 🥰 Yesterday hi' -> 'Akka 💝 🥰 Yesterday hi'."""
+    return _ROW_START.sub("", row).strip() or row
+
+
 def name_part(row: str) -> str:
-    """'Amma ❤️ Yesterday Ippude...' -> 'Amma ❤️'."""
+    """'Amma ❤️ Yesterday Ippude...' -> 'Amma ❤️' (also with "1 unread message" in front)."""
+    row = clean_row(row)
     m = _ROW_END.search(row)
     return (row[: m.start()] if m else row).strip()
 
@@ -255,7 +269,8 @@ class WhatsApp:
         self._select_all()
         self._key("backspace")
         self._type(search_text(contact))
-        rows = self._settled_rows(hwnd)
+        # match on the row without "1 unread message" etc. in front of the name
+        rows = [replace(c, name=clean_row(c.name)) for c in self._settled_rows(hwnd)]
         if exact:                                         # "just amma": the name must be exactly that
             rows = [c for c in rows if normalize(name_part(c.name)) == normalize(contact)]
         row = best_match(contact, rows)

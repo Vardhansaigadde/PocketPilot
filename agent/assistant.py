@@ -15,6 +15,7 @@ from typing import Any, Callable, Protocol
 from .commands import Command, GoToCmd, OpenAppCmd, ScreenCmd, SearchCmd, TaskCmd, UnknownCmd
 from .executor import Executor, Outcome
 from .memory import Memory
+from . import telugu
 from .router import fast_path, split_steps
 
 log = logging.getLogger("pocketpilot.assistant")
@@ -32,7 +33,7 @@ class Planner(Protocol):
 
 
 class Transcriber(Protocol):
-    def transcribe(self, audio: Any) -> str: ...   # file bytes or a 16 kHz numpy array
+    def transcribe(self, audio: Any, lang: str = "en") -> str: ...   # file bytes or 16 kHz numpy array
 
 
 class PlannerError(RuntimeError):
@@ -72,6 +73,14 @@ class Assistant:
         self.memory = memory   # local history log (data/history.db)
         self.agent = agent     # task_agent.TaskAgent for multi-step requests
         self._busy = threading.Lock()
+        self.lang = "en"       # voice language from the phone's EN / తె switch (v5)
+
+    def set_lang(self, lang: str) -> list[dict]:
+        """The phone's language switch. The laptop mic follows it too."""
+        self.lang = "te" if lang == "te" else "en"
+        if self.lang == "te":
+            return [reply("సరే, ఇక తెలుగులో మాట్లాడండి.")]
+        return [reply("OK, English voice.")]
 
     # -- entry points (called from a worker thread) ---------------------------
     def handle_text(self, text: str, source: str = "typed") -> list[dict]:
@@ -89,7 +98,7 @@ class Assistant:
             return [reply("Still working on the last one…", ok=False)]
         try:
             try:
-                text = self.transcriber.transcribe(audio).strip()
+                text = self.transcriber.transcribe(audio, lang=self.lang).strip()
             except Exception:
                 log.exception("speech-to-text failed")
                 return [reply("Sorry, I couldn't process that audio.", ok=False)]
@@ -110,16 +119,27 @@ class Assistant:
 
     # -- internals -------------------------------------------------------------
     def to_command(self, text: str) -> Command:
+        is_telugu = telugu.applies(text)
+        if is_telugu and (cmd := telugu.to_command(text)) is not None:
+            return cmd                                     # instant Telugu / Tenglish phrase
         cmd = fast_path(text)
+        if cmd is None and is_telugu:                      # "స్క్రోల్ డౌన్" -> "scroll down"
+            cmd = fast_path(telugu.to_english(text))
         if cmd is not None:
             return cmd
         if self.planner is None:
             return UnknownCmd(action="unknown", say=DIDNT_UNDERSTAND)
+        if is_telugu:
+            hint = telugu.to_english(text)
+            ask = f"{text} (in simple letters: {hint})" if hint != text.lower() else text
+            cmd = self.planner.to_command(ask)
+            return telugu.fix_names(cmd)                   # Telugu-script names/places -> English
         return self.planner.to_command(text)
 
     def _handle_text(self, text: str, source: str = "typed") -> list[dict]:
         if self.executor.choice is not None:              # answering "which Akka?"
-            out = self.executor.answer_choice(text)
+            answer = telugu.to_english(text) if telugu.applies(text) else text
+            out = self.executor.answer_choice(answer)
             if out is not None:
                 if self.memory is not None:
                     self.memory.log(source, text, {"action": "choice"}, out.ok, out.say)

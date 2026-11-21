@@ -22,7 +22,7 @@
   };
 
   const settings = Object.assign(
-    { sensitivity: 1.4, accel: 1.0, scroll: 1.0, natural: true, hints: true, speak: true, tapDrag: true },
+    { sensitivity: 1.4, accel: 1.0, scroll: 1.0, natural: true, hints: true, speak: true, tapDrag: true, lang: 'en' },
     store.get('pp_settings', {}),
   );
 

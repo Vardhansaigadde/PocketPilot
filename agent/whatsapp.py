@@ -251,6 +251,10 @@ class WhatsApp:
     def resolve_contact(self, heard: str) -> str:
         """Clean up what speech-to-text heard, and snap it to a known contact if one is close
         ("Amah" -> "Amma"). Known contacts come from POCKETPILOT_CONTACTS in .env."""
+        if re.search(r"[ఀ-౿]", heard):              # Telugu script: అమ్మ -> Amma
+            from .telugu import _name, normalise
+
+            heard = _name([w for w in normalise(heard) if w.norm not in ("ki", "ku", "gaariki", "tho")]) or heard
         name = re.sub(r"[^\w\s.'-]", " ", emoji_to_words(heard))      # "❤️" -> "heart", drop punctuation
         name = re.sub(r"\b(?:on|in|via|over)?\s*(?:whatsapp|whats ?app|what'?s ?app|wats ?app|watsapp|whatsap)\b",
                       " ", name, flags=re.I)

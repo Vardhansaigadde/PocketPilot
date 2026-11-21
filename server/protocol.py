@@ -129,10 +129,16 @@ class Stop(BaseModel):
     t: Literal["stop"]
 
 
+class Lang(BaseModel):
+    """Voice language switch on the phone: English or Telugu (v5)."""
+    t: Literal["lang"]
+    lang: Literal["en", "te"]
+
+
 MAX_AUDIO_BYTES = 2 * 1024 * 1024   # a recorded voice command (binary frame)
 
 Message = Annotated[
-    Union[Move, Click, Button, Scroll, Zoom, Key, Text, Hotkey, Media, Ping, Say, Approve, Stop],
+    Union[Move, Click, Button, Scroll, Zoom, Key, Text, Hotkey, Media, Ping, Say, Approve, Stop, Lang],
     Field(discriminator="t"),
 ]
 

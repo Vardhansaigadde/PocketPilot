@@ -80,7 +80,11 @@ class Outcome:
 CHOICE_SECONDS = 90
 _ORDINALS = {"first": 1, "one": 1, "1st": 1, "second": 2, "two": 2, "2nd": 2, "third": 3, "three": 3,
              "3rd": 3, "fourth": 4, "four": 4, "4th": 4, "fifth": 5, "five": 5, "5th": 5, "sixth": 6,
-             "six": 6, "6th": 6, "last": -1}
+             "six": 6, "6th": 6, "last": -1,
+             # Telugu (as spoken, in simple letters): okati, rendu..., modatidi, rendavadi...
+             "okati": 1, "okkati": 1, "modati": 1, "modatidi": 1, "modatidhi": 1, "rendu": 2, "rendava": 2,
+             "rendavadi": 2, "rendodi": 2, "moodu": 3, "mooduvadi": 3, "moodavadi": 3, "naalugu": 4,
+             "nalugu": 4, "naalugavadi": 4, "aidu": 5, "aidavadi": 5, "aaru": 6, "chivari": -1, "chivaridi": -1}
 
 
 @dataclass

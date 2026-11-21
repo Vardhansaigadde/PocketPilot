@@ -37,6 +37,7 @@ class Config:
     vision_model: str = "qwen3.5:4b"  # v3 screen explainer: can see images, slower
     ollama_url: str = "http://127.0.0.1:11434"
     whisper_model: str = "base.en"
+    telugu_whisper: str = "ukta-app/whisper-telugu-ct2"   # v5 Telugu speech-to-text
     amazon_domain: str = "www.amazon.in"
     contact: str | None = None        # your GitHub repo URL (Wikipedia asks apps for one)
     gnews_key: str | None = None      # free key from gnews.io (news)
@@ -58,6 +59,7 @@ def load_config(env_file: Path | None = None) -> Config:
         vision_model=get("POCKETPILOT_VISION_MODEL", Config.vision_model) or Config.vision_model,
         ollama_url=get("POCKETPILOT_OLLAMA_URL", Config.ollama_url) or Config.ollama_url,
         whisper_model=get("POCKETPILOT_WHISPER", Config.whisper_model) or Config.whisper_model,
+        telugu_whisper=get("POCKETPILOT_TELUGU_WHISPER", Config.telugu_whisper) or Config.telugu_whisper,
         amazon_domain=get("POCKETPILOT_AMAZON", Config.amazon_domain) or Config.amazon_domain,
         contact=get("POCKETPILOT_CONTACT"),
         gnews_key=get("POCKETPILOT_GNEWS_KEY"),

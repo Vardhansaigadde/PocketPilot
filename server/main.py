@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .input_control import Controller, dispatch
 from .pairing import check_token
-from .protocol import MAX_AUDIO_BYTES, Approve, BadMessage, Say, Stop, parse_message
+from .protocol import MAX_AUDIO_BYTES, Approve, BadMessage, Lang, Say, Stop, parse_message
 
 if TYPE_CHECKING:
     from agent.assistant import Assistant
@@ -137,6 +137,10 @@ def create_app(
                     if assistant is not None:
                         # Straight away, not queued behind a slow command.
                         await phones.broadcast(await asyncio.to_thread(assistant.stop))
+                    continue
+                if isinstance(msg, Lang):
+                    if assistant is not None:
+                        await ws.send_json(assistant.set_lang(msg.lang)[0] | {"quiet": True})
                     continue
                 if isinstance(msg, (Say, Approve)):
                     if assistant is None:

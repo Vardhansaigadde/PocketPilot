@@ -28,12 +28,14 @@
     if (keepMs) bubbleTimer = setTimeout(() => { bubble.hidden = true; heard = ''; }, keepMs);
   }
 
+  const TELUGU = /[ఀ-౿]/;
+
   function speak(text) {
     if (!PP.settings.speak || !('speechSynthesis' in window)) return;
     try {
       speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = 'en-IN';
+      u.lang = TELUGU.test(text) ? 'te-IN' : 'en-IN';   // the phone's Google voice speaks Telugu
       speechSynthesis.speak(u);
     } catch { /* speech is optional */ }
   }
@@ -44,6 +46,7 @@
       heard = m.text;
       show('…', true, 0);
     } else if (m.t === 'reply') {
+      if (m.quiet) { show(m.text, true, 2500); return; }   // language switch: show, don't speak
       show(m.text, m.ok !== false);
       speak(m.text);
       heard = '';
@@ -58,6 +61,7 @@
       askChoice(m);
     } else if (m.t === 'hello') {
       mic.hidden = false;
+      if (PP.settings.lang === 'te') PP.send({ t: 'lang', lang: 'te' });   // the laptop forgets on restart
       if (!window.isSecureContext || !navigator.mediaDevices) mic.title = 'Voice needs HTTPS';
     }
   });
@@ -308,6 +312,24 @@
     if (!locked) cancelRecording();
   });
   mic.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  // ---- EN / తె voice language (v5) ------------------------------------------------
+  const langBtn = $('#langBtn');
+  function paintLang() {
+    const te = PP.settings.lang === 'te';
+    langBtn.textContent = te ? 'తె' : 'EN';
+    langBtn.classList.toggle('te', te);
+    langBtn.setAttribute('aria-label', te ? 'Voice language: Telugu. Tap for English'
+                                          : 'Voice language: English. Tap for Telugu');
+    $('#cmdText').placeholder = te ? 'కమాండ్ టైప్ చేయండి…' : 'Type a command…';
+  }
+  langBtn.addEventListener('click', () => {
+    PP.settings.lang = PP.settings.lang === 'te' ? 'en' : 'te';
+    PP.saveSettings();
+    paintLang();
+    if (!PP.send({ t: 'lang', lang: PP.settings.lang })) show('Not connected to the laptop.', false);
+  });
+  paintLang();
 
   // ---- "speak replies" setting --------------------------------------------------
   const speakBox = $('#speak');

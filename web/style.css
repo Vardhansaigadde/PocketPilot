@@ -291,6 +291,18 @@ button.on { background: var(--surface-2); border-color: var(--border-strong); }
   user-select: text; -webkit-user-select: text;
 }
 .cmd input::placeholder { color: var(--muted); }
+/* EN / తె voice-language switch (v5) */
+.lang {
+  flex: none; min-width: 36px; height: 30px; padding: 0 8px;
+  border-radius: 15px;
+  font: inherit; font-size: 13px; font-weight: 700;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.18));
+  transition: color var(--t-fast), background-color var(--t-fast), border-color var(--t-fast);
+}
+.lang.te { color: var(--text); background: rgba(34, 197, 94, 0.15); border-color: rgba(34, 197, 94, 0.45); }
+.lang:active { transform: scale(0.94); }
 .send { width: 44px; border-radius: 50%; background: transparent; border-color: transparent; color: var(--muted); }
 .stop {
   width: var(--tap); height: var(--tap);

@@ -229,7 +229,8 @@ class FakeTranscriber:
     def __init__(self, text):
         self.text = text
 
-    def transcribe(self, audio):
+    def transcribe(self, audio, lang="en"):
+        self.lang = lang
         return self.text
 
 

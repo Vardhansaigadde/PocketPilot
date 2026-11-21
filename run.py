@@ -145,7 +145,8 @@ def build_assistant(controller, args):  # noqa: ANN001, ANN201 - kept simple for
                         whatsapp=WhatsApp(controller, contacts=list(cfg.contacts)),
                         awake=awake, locked=screen_locked)
     planner.warm_up()
-    transcriber = WhisperTranscriber(cfg.whisper_model, names=cfg.contacts)
+    transcriber = WhisperTranscriber(cfg.whisper_model, names=cfg.contacts,
+                                     telugu_model=cfg.telugu_whisper)
     transcriber.preload()
     print(f"  Voice: Whisper {cfg.whisper_model}, AI model {planner.model} (Ollama)"
           + (", laptop mic: say \"Hey Jarvis\"" if not args.no_wake else ""))

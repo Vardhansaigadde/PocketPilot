@@ -2,6 +2,9 @@
 
 The model (base.en ≈ 145 MB) downloads automatically the first time and is
 cached. It loads in the background at startup so the first command is quick.
+
+Telugu (v5) uses a second model, a Telugu-trained Whisper-small (≈ 250 MB,
+Apache-2.0), loaded the first time Telugu is used.
 """
 
 from __future__ import annotations
@@ -61,26 +64,32 @@ def decode_audio(data: bytes) -> Any:
     return (np.concatenate(parts).astype(np.float32) / 32768.0)[: SAMPLE_RATE * MAX_SECONDS]
 
 
+TELUGU_MODEL = "ukta-app/whisper-telugu-ct2"
+
+
 class WhisperTranscriber:
     def __init__(self, model_size: str = "base.en", threads: int = 4,
-                 names: tuple[str, ...] | list[str] = ()) -> None:
+                 names: tuple[str, ...] | list[str] = (),
+                 telugu_model: str = TELUGU_MODEL) -> None:
         self.model_size = model_size
+        self.telugu_model = telugu_model
         self.threads = threads
         self.hint = build_hint(names)
-        self._model: Any = None
+        self._models: dict[str, Any] = {}
         self._lock = threading.Lock()
 
-    def _load(self) -> Any:
+    def _load(self, lang: str = "en") -> Any:
+        name = self.telugu_model if lang == "te" else self.model_size
         with self._lock:
-            if self._model is None:
+            if name not in self._models:
                 from faster_whisper import WhisperModel  # heavy import, done once
 
-                log.info("loading Whisper %s (first time downloads it)…", self.model_size)
-                self._model = WhisperModel(
-                    self.model_size, device="cpu", compute_type="int8", cpu_threads=self.threads,
+                log.info("loading Whisper %s (first time downloads it)…", name)
+                self._models[name] = WhisperModel(
+                    name, device="cpu", compute_type="int8", cpu_threads=self.threads,
                 )
-                log.info("Whisper ready")
-            return self._model
+                log.info("Whisper %s ready", name)
+            return self._models[name]
 
     def preload(self) -> None:
         """Load the model in a background thread so the first command isn't slow."""
@@ -92,16 +101,20 @@ class WhisperTranscriber:
         except Exception:
             log.exception("could not load Whisper")
 
-    def transcribe(self, audio: bytes | Any) -> str:
+    def transcribe(self, audio: bytes | Any, lang: str = "en") -> str:
         """`audio` = a recorded file (webm/ogg/mp4/wav bytes from the phone) or a
-        16 kHz mono float32 numpy array (from the laptop mic)."""
-        model = self._load()
+        16 kHz mono float32 numpy array (from the laptop mic). `lang` = "en" or "te"."""
+        model = self._load(lang)
         source = decode_audio(audio) if isinstance(audio, (bytes, bytearray)) else audio
         if len(source) < SAMPLE_RATE // 4:      # under a quarter second: nothing said
             return ""
-        language = "en" if self.model_size.endswith(".en") else None
+        if lang == "te":
+            language, hint = "te", None         # the English hint would pull it to English
+        else:
+            language = "en" if self.model_size.endswith(".en") else None
+            hint = self.hint
         segments, _info = model.transcribe(
             source, language=language, beam_size=1, vad_filter=True,
-            initial_prompt=self.hint, condition_on_previous_text=False,
+            initial_prompt=hint, condition_on_previous_text=False,
         )
         return " ".join(s.text.strip() for s in segments).strip()

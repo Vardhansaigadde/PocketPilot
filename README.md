@@ -4,9 +4,32 @@
 
 Zero cost: everything is open source and runs on your own laptop. No cloud account needed.
 
-> Status: **v1 (touchpad) and v2 (voice commands) work**, tested on a real phone with the [25-command checklist](docs/v2-commands.md). **v3 (smart click + screen explainer) works** too ([v3 checklist](docs/v3-tests.md)). **v4 (WhatsApp messages and calls, multi-step tasks, memory, more skills) works** too ([v4 checklist](docs/v4-tests.md)). Next: v5, Telugu and parent mode. See the [roadmap](#roadmap).
+> Status: **v1 (touchpad) and v2 (voice commands) work**, tested on a real phone with the [25-command checklist](docs/v2-commands.md). **v3 (smart click + screen explainer) works** too ([v3 checklist](docs/v3-tests.md)). **v4 (WhatsApp messages and calls, multi-step tasks, memory, more skills) works** too ([v4 checklist](docs/v4-tests.md)). **v5 (Telugu voice and Telugu replies) is built**, phone test next ([v5 checklist](docs/v5-tests.md)). See the [roadmap](#roadmap).
 
 <!-- Add a demo GIF here once recorded: docs/demo-v1.gif -->
+
+## Telugu (v5)
+
+Tap **EN** next to the command box so it shows **తె**, then speak Telugu, or Telugu mixed with
+English. Replies come back in Telugu and the phone speaks them.
+
+| Say | What happens |
+| --- | --- |
+| "నోట్‌ప్యాడ్ ఓపెన్ చెయ్యి", "notepad open cheyyi" | Opens Notepad |
+| "అమ్మకి కాల్ చెయ్యి", "ammaki call cheyyi" | Approve card for a WhatsApp call to Amma |
+| "అక్కకి హాయ్ అని మెసేజ్ పంపు" | Drafts "హాయ్" to Akka, sends after Approve ("రెండు" picks the 2nd Akka) |
+| "హైదరాబాద్‌లో వాతావరణం ఎలా ఉంది" | Hyderabad weather, answered in Telugu |
+| "యూట్యూబ్‌లో తెలుగు పాటలు పెట్టు" | YouTube search for తెలుగు పాటలు |
+| "వాల్యూమ్ పెంచు", "కిందకి స్క్రోల్ చెయ్యి", "స్క్రోల్ డౌన్", "ఆపు" | Volume, scrolling, stop |
+
+How it works: a Telugu-trained Whisper model (250 MB, downloaded the first time) turns speech into
+Telugu text. Common commands are matched by Telugu phrase rules in `agent/telugu.py` (instant, no
+AI): it strips Telugu case endings (అమ్మ**కి**), turns Telugu-script English words back into
+English (స్క్రోల్ డౌన్ → scroll down) and maps family and city names (అక్క → Akka,
+హైదరాబాద్ → Hyderabad). Anything else goes to the local AI with a transliterated hint. Replies
+use Telugu templates; the phone's own Android voice speaks them, because Windows has no Telugu voice.
+On this laptop's CPU it takes 3–5 s for a 6–10 s sentence, with 2–10 % character errors on
+clear Telugu speech.
 
 ## WhatsApp, tasks, memory and more skills (v4)
 
@@ -203,8 +226,9 @@ It prints which command the model picks for each phrase, how long it took, and t
 | **v2 Voice commands** ✅ | Phone mic + "Hey Jarvis" on the laptop ("Hey Pilot" later); open apps, weather, Edge/YouTube search, grid clicking |
 | **v3 Smart click + screen explainer** ✅ | "Click the Login button", "summarize this page", "explain this error" |
 | **v4 Task agent** ✅ | Multi-step tasks, WhatsApp messages **and calls** with Approve, memory of what you did, currency/dictionary/news/cricket |
-| v5 Telugu + parent mode | Telugu voice commands and replies, simple screen for parents, Android app |
-| v6 Macros + MCP | "Watch me once" skills, MCP server for other AI apps |
+| **v5 Telugu** (built) | Telugu and Telugu–English voice commands, Telugu replies |
+| v6 Android app | Native app with haptics and a Wake-on-LAN button |
+| v7 Macros + MCP | "Watch me once" skills, MCP server for other AI apps |
 
 ## License
 

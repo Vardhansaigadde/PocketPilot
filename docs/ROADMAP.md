@@ -1,6 +1,6 @@
 # PocketPilot roadmap
 
-Launch target: **Feb 14, 2027** (v1–v5), at about 10 hours a week. v6 comes after launch.
+Launch target: **Feb 14, 2027** (v1–v5), at about 10 hours a week. v6 and v7 come after launch.
 A version is done only when its "Done when" checks pass, tests pass, and README is updated.
 
 ## v1 — Touchpad ✅ (done)
@@ -30,18 +30,26 @@ Speak into the phone (mic button) or to the laptop ("Hey Pilot" wake word).
 - Eval script: 20 tasks × 3 runs → success rate table for README.
 - Done when: 5 multi-step tasks finish end to end; no message is ever sent without Approve.
 
-## v5 — Telugu + parent mode (Jan 25 – Feb 7)
-- Telugu speech-to-text: AI4Bharat IndicConformer Telugu (int8 ONNX) or Shruti Telugu — test both, keep the better one. Whisper is weak at Telugu.
-- Translation: AI4Bharat IndicTrans2 (Telugu → English for the planner, English → Telugu for replies).
-- Telugu text-to-speech: OmniVoice or AI4Bharat Indic-TTS. English: Piper.
-- Parent mode: simple large-button phone screen, Telugu voice only.
-- Native Android app (Flutter) with haptics; APK on GitHub Releases.
+## v5 — Telugu voice + Telugu replies (built; phone test with `docs/v5-tests.md`)
+- Telugu speech-to-text: IIT Madras' Telugu Whisper-small, already converted for faster-whisper
+  (`ukta-app/whisper-telugu-ct2`, 250 MB, Apache-2.0; WER 11.6 % on FLEURS Telugu). Chosen over
+  AI4Bharat IndicConformer (2.5 GB, gated). Loaded the first time Telugu is used.
+- EN / తె switch on the phone (remembered); the laptop mic follows it; typed Telugu is detected.
+- Telugu phrase rules (no AI): call / message / open / volume / scroll / YouTube / weather / news /
+  stop / grid / wake, in Telugu script and Tenglish ("ammaki call cheyyi"). Family names and city
+  names map to English; English words said in Telugu ("స్క్రోల్ డౌన్") use the English fast path.
+  Anything else goes to qwen3:4b with a transliterated hint.
+- Telugu replies from templates (no translation model); the phone's Android voice speaks them (te-IN).
+- Parent mode: dropped (not needed).
 - Done when: 20 Telugu commands work, including Telugu mixed with English.
 
 ## Launch (Feb 14)
 README with demo GIF + eval table, 60–90 s demo video, LinkedIn post.
 
-## v6 — Macros + MCP (after launch, Feb 15 – Mar 14)
+## v6 — Android app (after launch)
+- Native Android app (Flutter) with haptics and a Wake-on-LAN button; APK on GitHub Releases.
+
+## v7 — Macros + MCP (after launch, Feb 15 – Mar 14)
 - "Watch me once": record a task, turn it into a reusable skill ("do my morning setup").
 - MCP server exposing PocketPilot's skills to other AI apps (MCP Python SDK).
 - Done when: a recorded task replays correctly 3 times in a row; another AI app can call PocketPilot over MCP.

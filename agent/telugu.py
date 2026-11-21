@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from typing import Any
 
 from skills.websites import resolve as resolve_site
 
@@ -348,3 +349,106 @@ def fix_names(cmd: Command) -> Command:
         words = [w for w in normalise(cmd.place) if w.norm != "lo"]
         return cmd.model_copy(update={"place": _place(words)[:80]})
     return cmd
+
+
+# ---- Telugu replies (v5) ------------------------------------------------------------------------
+# The executor answers in English; these turn the replies heard most into Telugu.
+# Anything not listed stays English (the phone speaks it with the English voice).
+
+_WEATHER = {
+    "clear sky": "ఆకాశం నిర్మలంగా ఉంది", "mainly clear": "దాదాపు నిర్మలంగా ఉంది",
+    "partly cloudy": "కొంచెం మబ్బుగా ఉంది", "cloudy": "మబ్బుగా ఉంది", "foggy": "పొగమంచు ఉంది",
+    "light drizzle": "చిన్న చినుకులు పడుతున్నాయి", "drizzle": "చినుకులు పడుతున్నాయి",
+    "light rain": "చిన్న వర్షం పడుతోంది", "rain": "వర్షం పడుతోంది", "heavy rain": "భారీ వర్షం పడుతోంది",
+    "light showers": "చిరుజల్లులు పడుతున్నాయి", "showers": "జల్లులు పడుతున్నాయి",
+    "heavy showers": "భారీ జల్లులు పడుతున్నాయి", "thunderstorms": "ఉరుములతో వర్షం",
+}
+
+_AQI = {"good": "బాగుంది", "moderate": "పర్వాలేదు",
+        "unhealthy for sensitive people": "ఆస్తమా ఉన్నవాళ్లకు మంచిది కాదు",
+        "unhealthy": "బాగాలేదు, బయట మాస్క్ వేసుకోండి", "very unhealthy": "చాలా బాగాలేదు, లోపలే ఉండండి",
+        "hazardous": "ప్రమాదకరంగా ఉంది, లోపలే ఉండండి"}
+
+_SCROLL = {"down": "కిందకి", "up": "పైకి", "left": "ఎడమకి", "right": "కుడికి"}
+
+
+def _weather_te(m: re.Match) -> str:
+    sky = _WEATHER.get(m["sky"], m["sky"])
+    out = f"{m['place']}లో ఇప్పుడు {m['temp']}°C, {sky}."
+    if m["lo"]:
+        out += f" ఈరోజు {m['lo']} నుంచి {m['hi']}°C."
+    if m["rain"]:
+        out += f" వర్షం పడే అవకాశం {m['rain']}%."
+    return out
+
+
+# (English reply pattern, Telugu reply or function). First match wins.
+_REPLIES: list[tuple[str, Any]] = [
+    (r"Opening (?P<x>.+?)\.(?: .*)?", "{x} తెరుస్తున్నాను."),
+    (r"The (?P<x>.+?) app isn't installed, so I opened .+ on the web\.", "{x} యాప్ లేదు, వెబ్‌లో తెరిచాను."),
+    (r"Volume up\.", "సౌండ్ పెంచాను."),
+    (r"Volume down\.", "సౌండ్ తగ్గించాను."),
+    (r"Toggled mute\.", "మ్యూట్ మార్చాను."),
+    (r"Play / pause\.", "ప్లే / పాజ్ చేశాను."),
+    (r"Next track\.", "తర్వాతి పాట."),
+    (r"Previous track\.", "ముందు పాట."),
+    (r"Scrolled (?P<d>\w+)\.", lambda m: f"{_SCROLL.get(m['d'], m['d'])} స్క్రోల్ చేశాను."),
+    (r"Typed it\.", "టైప్ చేశాను."),
+    (r"Double-clicked\.", "డబుల్ క్లిక్ చేశాను."),
+    (r"Clicked (?P<x>.+?)\.", "{x} క్లిక్ చేశాను."),
+    (r"Grid on\..*", "గ్రిడ్ వచ్చింది. క్లిక్ అని ఒక నంబర్ చెప్పండి."),
+    (r"Grid off\.", "గ్రిడ్ తీసేశాను."),
+    (r"Message to (?P<x>.+) is ready\. Approve on your phone to send it\.",
+     "{x}కి మెసేజ్ రెడీ. పంపడానికి ఫోన్‌లో Approve నొక్కండి."),
+    (r"Approve on your phone to call (?P<x>.+)\.", "{x}కి కాల్ చేయడానికి ఫోన్‌లో Approve నొక్కండి."),
+    (r"Approve on your phone to close the window\.", "విండో మూయడానికి ఫోన్‌లో Approve నొక్కండి."),
+    (r"Approve on your phone to (?P<x>.+)\.", "ఫోన్‌లో Approve నొక్కండి."),
+    (r"Sent to (?P<x>.+)\.", "{x}కి పంపాను."),
+    (r"Calling (?P<x>.+) \((?:voice|video)\)\.", "{x}కి కాల్ చేస్తున్నాను."),
+    (r"Opened your chat with (?P<x>.+)\.", "{x} చాట్ తెరిచాను."),
+    (r"What should I say to (?P<x>.+)\?", "{x}కి ఏం పంపాలి?"),
+    (r"Which (?P<x>.+?)\? (?P<list>.+)\. Say the name or the number\.",
+     "ఏ {x}? {list}. పేరు లేదా నంబర్ చెప్పండి."),
+    (r"I couldn't find (?P<x>.+) in WhatsApp\.", "వాట్సాప్‌లో {x} కనిపించలేదు."),
+    (r"I couldn't find (?P<x>.+) on the screen\..*", "స్క్రీన్ మీద {x} కనిపించలేదు. షో గ్రిడ్ అని చెప్పండి."),
+    (r"WhatsApp isn't open\..*", "వాట్సాప్ తెరిచి లేదు. ముందు వాట్సాప్ తెరవండి."),
+    (r"Closed the window\.", "విండో మూసేశాను."),
+    (r"Cancelled\.|OK, cancelled\.", "సరే, రద్దు చేశాను."),
+    (r"That request expired\..*", "ఆ రిక్వెస్ట్ టైమ్ అయిపోయింది. మళ్ళీ అడగండి."),
+    (r"Stopped\.", "ఆపేశాను."),
+    (r"Screen is on\. It's locked.*", "స్క్రీన్ ఆన్ అయ్యింది. లాక్ తీయండి."),
+    (r"Screen is on\.", "స్క్రీన్ ఆన్ అయ్యింది."),
+    (r"Searching (?P<site>.+?) for (?P<x>.+)\.", "{site}లో {x} వెతుకుతున్నాను."),
+    (r"(?P<place>[^:]+): (?P<temp>-?\d+)°C and (?P<sky>[a-z ]+?)(?:, feels like -?\d+°C)?\."
+     r"(?: Today (?P<lo>-?\d+) to (?P<hi>-?\d+)°C)?(?:, (?P<rain>\d+)% chance of rain)?.*", _weather_te),
+    (r"Air quality in (?P<place>.+?) is (?P<q>[a-z ]+): AQI (?P<n>\d+).*",
+     lambda m: f"{m['place']}లో గాలి నాణ్యత {_AQI.get(m['q'], m['q'])}: AQI {m['n']}."),
+    # Approve card questions
+    (r'Send to (?P<x>.+) on WhatsApp: "(?P<m>.*)"\?', '{x}కి వాట్సాప్‌లో పంపాలా: "{m}"?'),
+    (r"Group (?P<k>voice|video) call (?P<x>.+) on WhatsApp\? .*",
+     lambda m: f"{m['x']} గ్రూప్‌కి {'వీడియో ' if m['k'] == 'video' else ''}కాల్ చేయాలా? (గ్రూప్‌లో అందరికీ రింగ్ అవుతుంది)"),
+    (r"(?P<k>Voice|Video) call (?P<x>.+) on WhatsApp\?",
+     lambda m: f"{m['x']}కి వాట్సాప్ {'వీడియో ' if m['k'] == 'Video' else ''}కాల్ చేయాలా?"),
+    (r"Close the active window\?", "ఇప్పుడున్న విండో మూసేయాలా?"),
+    (r"Delete all of PocketPilot's history\?", "PocketPilot హిస్టరీ మొత్తం తీసేయాలా?"),
+    (r'Click "(?P<x>.+)"\?', '"{x}" క్లిక్ చేయాలా?'),
+    (r"Sorry, I didn't understand\..*", "క్షమించండి, అర్థం కాలేదు. ఉదా: నోట్‌ప్యాడ్ ఓపెన్ చెయ్యి, వాతావరణం."),
+    (r"I didn't catch that\..*", "వినపడలేదు. మళ్ళీ చెప్పండి."),
+    (r"Still working on the last one…", "ఇంకా ముందు పని చేస్తున్నాను…"),
+    (r"Sorry, that didn't work\.", "క్షమించండి, అది పని చేయలేదు."),
+]
+_REPLIES_RE = [(re.compile(p, re.S), r) for p, r in _REPLIES]
+
+
+def reply(text: str) -> str:
+    """An English reply -> Telugu, if it is one we know; otherwise unchanged."""
+    for rx, out in _REPLIES_RE:
+        m = rx.fullmatch(text.strip())
+        if m:
+            said = out(m) if callable(out) else out.format(**{k: v or "" for k, v in m.groupdict().items()})
+            return _SPACE_BEFORE_ENDING.sub(r"\1 \2", said)
+    return text
+
+
+# "Amma ❤️కి" reads badly: put a space between an emoji/symbol and a Telugu ending.
+_SPACE_BEFORE_ENDING = re.compile(r"([^\w\s\u0c00-\u0c7f\u200c\u200d.)\"'])(\u0c15\u0c3f|\u0c32\u0c4b)")

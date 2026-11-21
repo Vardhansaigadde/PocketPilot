@@ -44,6 +44,16 @@ def reply(text: str, ok: bool = True) -> dict:
     return {"t": "reply", "text": text, "ok": ok}
 
 
+def in_telugu(msgs: list[dict]) -> list[dict]:
+    """Replies, "which one?" and Approve cards in Telugu (the ones we have templates for)."""
+    out = []
+    for m in msgs:
+        if m.get("t") in ("reply", "choices", "approve_request") and "text" in m:
+            m = {**m, "text": telugu.reply(m["text"])}
+        out.append(m)
+    return out
+
+
 def _outcome_messages(out: Outcome) -> list[dict]:
     msgs = [reply(out.say, out.ok)]
     if out.choices:
@@ -87,7 +97,7 @@ class Assistant:
         if not self._busy.acquire(blocking=False):
             return [reply("Still working on the last one…", ok=False)]
         try:
-            return self._handle_text(text, source)
+            return self._speak(self._handle_text(text, source), text)
         finally:
             self._busy.release()
 
@@ -104,18 +114,24 @@ class Assistant:
                 return [reply("Sorry, I couldn't process that audio.", ok=False)]
             if not text:
                 return [reply("I didn't catch that. Try again?", ok=False)]
-            return [{"t": "heard", "text": text}, *self._handle_text(text, source)]
+            return [{"t": "heard", "text": text}, *self._speak(self._handle_text(text, source), text)]
         finally:
             self._busy.release()
 
     def approve(self, approval_id: str, ok: bool) -> list[dict]:
-        return [reply(self.executor.approvals.resolve(approval_id, ok))]
+        return self._speak([reply(self.executor.approvals.resolve(approval_id, ok))])
 
     def stop(self) -> list[dict]:
         """Kill switch. Never waits for the busy lock; also ends a running task."""
         if self.agent is not None:
             self.agent.cancel()
-        return [reply(self.executor.stop().say)]
+        return self._speak([reply(self.executor.stop().say)])
+
+    def _speak(self, msgs: list[dict], said: str = "") -> list[dict]:
+        """Answer in Telugu when the switch is on Telugu or the request was Telugu."""
+        if self.lang == "te" or telugu.applies(said):
+            return in_telugu(msgs)
+        return msgs
 
     # -- internals -------------------------------------------------------------
     def to_command(self, text: str) -> Command:

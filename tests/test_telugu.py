@@ -89,7 +89,7 @@ def test_assistant_runs_telugu_without_the_ai():
 
     ctl = FakeController()
     a = Assistant(Executor(ctl, Approvals(), launcher=lambda t: None, app_available=lambda t: True), planner=NoAI())
-    assert a.handle_text("వాల్యూమ్ పెంచు")[0]["text"] == "Volume up."
+    assert a.handle_text("వాల్యూమ్ పెంచు")[0]["text"] == "సౌండ్ పెంచాను."   # answered in Telugu
     assert ("media", "volume_up") in ctl.calls
 
 
@@ -157,3 +157,47 @@ def test_assistant_language_switch_reaches_the_transcriber():
     a.set_lang("en")
     a.handle_audio(b"x")
     assert fake.lang == "en"
+
+
+# ---- v5 step 3: Telugu replies ----------------------------------------------------
+
+def test_common_replies_have_telugu_templates():
+    from agent.telugu import reply
+
+    assert reply("Opening Notepad.") == "Notepad తెరుస్తున్నాను."
+    assert reply("Scrolled down.") == "కిందకి స్క్రోల్ చేశాను."
+    assert reply("Sent to Akka.") == "Akkaకి పంపాను."
+    assert reply("Stopped.") == "ఆపేశాను."
+    assert reply("Something new.") == "Something new."              # unknown: stays English
+
+
+def test_emoji_names_get_a_space_before_the_telugu_ending():
+    from agent.telugu import reply
+
+    assert reply("Sent to Amma ❤️.") == "Amma ❤️ కి పంపాను."
+
+
+def test_weather_and_approve_cards_in_telugu():
+    from agent.telugu import reply
+
+    w = reply("Hyderabad: 27°C and partly cloudy, feels like 30°C. "
+              "Today 19 to 29°C, 10% chance of rain, sunset at 5:41 PM.")
+    assert w.startswith("Hyderabadలో ఇప్పుడు 27°C") and "10%" in w
+    assert reply('Send to Akka on WhatsApp: "hi"?') == 'Akkaకి వాట్సాప్‌లో పంపాలా: "hi"?'
+    assert "వీడియో" in reply("Video call Akka on WhatsApp?")
+    assert reply("Which Akka? 1) Akka 2) Sharmila Akka. Say the name or the number.").startswith("ఏ Akka?")
+
+
+def test_replies_follow_the_switch_or_the_language_said():
+    from agent.approvals import Approvals
+    from agent.assistant import Assistant
+    from agent.executor import Executor
+    from tests.test_dispatch import FakeController
+
+    a = Assistant(Executor(FakeController(), Approvals(), launcher=lambda t: None,
+                           app_available=lambda t: True))
+    assert a.handle_text("scroll down")[0]["text"] == "Scrolled down."        # English stays English
+    assert a.handle_text("kindaki scroll cheyyi")[0]["text"] == "కిందకి స్క్రోల్ చేశాను."
+    a.set_lang("te")
+    assert a.handle_text("scroll down")[0]["text"] == "కిందకి స్క్రోల్ చేశాను."
+    assert a.stop()[0]["text"] == "ఆపేశాను."

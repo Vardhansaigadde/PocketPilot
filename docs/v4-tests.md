@@ -18,6 +18,8 @@ Start with `python run.py` and wait about a minute. Say each command with the ph
 | 9 | call amma (with "Amma ❤️" and "Amma" both saved) | Asks: say 'amma heart' or 'just amma' | ☐ |
 | 10 | message amma heart that hi | Approve card shows "Amma ❤️" | ☐ |
 | 11 | message akka that hi → then say "2" (or tap a name) | "Which akka?" buttons; the answer finishes the message → Approve card | ☐ |
+| 12 | message palmoil hi guys (a group) | Approve card "Send to Palmoil 🌴 🛢️"; Approve sends it to the group | ☐ |
+| 13 | video call palmoil | Approve card says it rings everyone in the group | ☐ |
 
 ## Multi-step tasks
 

@@ -293,7 +293,11 @@ class Executor:
             else:
                 video = cmd.kind == "video_call"
                 ready = self.whatsapp.prepare_call(cmd.contact, video=video)
-                question = f"{'Video' if video else 'Voice'} call {ready.chat} on WhatsApp?"
+                kind = "video" if video else "voice"
+                if getattr(ready, "group", False):
+                    question = f"Group {kind} call {ready.chat} on WhatsApp? (rings everyone in the group)"
+                else:
+                    question = f"{kind.capitalize()} call {ready.chat} on WhatsApp?"
                 say = f"Approve on your phone to call {ready.chat}."
         except AmbiguousContact as exc:
             self.choice = Choice(cmd, exc.names, self.clock() + CHOICE_SECONDS)

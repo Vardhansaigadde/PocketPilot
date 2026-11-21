@@ -426,3 +426,43 @@ def test_name_part_skips_unread_and_pinned_labels():
     assert name_part("1 unread message Akka 💝 🥰 Yesterday hi") == "Akka 💝 🥰"
     assert name_part("3 unread messages Akka 10:30 pm ok") == "Akka"
     assert name_part("Pinned chat Amma ❤️ Yesterday") == "Amma ❤️"
+
+
+# ---- groups: "Group info <name>" header, "Group video call" button ----------------------------------
+
+class FakeGroups(FakeWhatsApp):
+    """Like FakeWhatsApp, but every chat is a group."""
+
+    def controls(self, hwnd):
+        out = []
+        for x in super().controls(hwnd):
+            if x.name.startswith("Contact info "):
+                x = c("Group info " + x.name[len("Contact info "):], "Button", 900, 20)
+            elif x.name in ("Video call", "Voice call"):
+                x = c("Group " + x.name.lower(), "Button", x.rect[0], 20)
+            out.append(x)
+        return out
+
+
+def make_group():
+    wa = FakeGroups(("Palmoil 🌴 🛢️", "Family"))
+    ctl = Ctl(wa)
+    w = WhatsApp(ctl, controls=wa.controls, windows=lambda: [1], bring_front=lambda h: None,
+                 start=lambda: None, sleep=lambda s: None, front=lambda h: True)
+    return w, wa, ctl
+
+
+def test_group_chat_opens_and_message_is_ready():
+    w, wa, ctl = make_group()
+    ex = Executor(ctl, Approvals(), whatsapp=w, app_available=lambda t: True)
+    out = run(ex, {"action": "whatsapp", "contact": "palmoil", "kind": "message", "text": "hi guys"})
+    assert out.approval.text == 'Send to Palmoil 🌴 🛢️ on WhatsApp: "hi guys"?'
+    assert ex.approvals.resolve(out.approval.id, ok=True) == "Sent to Palmoil 🌴 🛢️."
+
+
+def test_group_call_says_it_rings_everyone():
+    w, wa, ctl = make_group()
+    ex = Executor(ctl, Approvals(), whatsapp=w, app_available=lambda t: True)
+    out = run(ex, {"action": "whatsapp", "contact": "palmoil", "kind": "video_call"})
+    assert out.approval.text == "Group video call Palmoil 🌴 🛢️ on WhatsApp? (rings everyone in the group)"
+    assert ex.approvals.resolve(out.approval.id, ok=True) == "Calling Palmoil 🌴 🛢️ (video call)."

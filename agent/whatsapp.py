@@ -95,6 +95,13 @@ class Prepared:
     chat: str                          # the chat that is open, e.g. "Amma"
     go: Callable[[], str]              # runs after Approve: send / call
     undo: Callable[[], None] | None    # runs after Cancel: wipe the draft
+    group: bool = False                # a group: a call rings everyone
+
+
+# The chat header says who is open: "Contact info Amma ❤️" for a person,
+# "Group info Palmoil 🌴 🛢️" for a group (and similar for communities, businesses).
+HEADERS = {"contact info ": False, "group info ": True, "community info ": True,
+           "business info ": False, "channel info ": True}
 
 
 def _title(hwnd: int) -> str:
@@ -293,12 +300,24 @@ class WhatsApp:
         return chat
 
     def current_chat(self, hwnd: int | None = None) -> str | None:
-        """Name of the open chat, from the header button "Contact info <name>"."""
-        hwnd = hwnd or self._window(launch=False)
-        header = self._find(hwnd, lambda c: c.kind == "Button" and c.name.lower().startswith("contact info "))
-        if header is None:
-            return None
-        return header.name[len("Contact info "):].strip() or None   # keeps the emoji: "Amma ❤️"
+        """Name of the open chat, from the header button ("Contact info <name>",
+        "Group info <name>", ...). Keeps the emoji: "Amma ❤️"."""
+        found = self._header(hwnd or self._window(launch=False))
+        return found[0] if found else None
+
+    def is_group(self, hwnd: int | None = None) -> bool:
+        found = self._header(hwnd or self._window(launch=False))
+        return bool(found and found[1])
+
+    def _header(self, hwnd: int) -> tuple[str, bool] | None:
+        for c in self.controls(hwnd):
+            if c.kind != "Button":
+                continue
+            low = c.name.lower()
+            for prefix, group in HEADERS.items():
+                if low.startswith(prefix):
+                    return c.name[len(prefix):].strip(), group
+        return None
 
     def prepare_message(self, contact: str, text: str) -> Prepared:
         chat = self.open_chat(contact)
@@ -325,16 +344,17 @@ class WhatsApp:
     def prepare_call(self, contact: str, video: bool = False) -> Prepared:
         chat = self.open_chat(contact)
         label = "video call" if video else "voice call"
+        group = self.is_group()
 
         def call() -> str:
             hwnd = self._check_still(chat)
-            button = self._find(hwnd, lambda c: c.kind == "Button" and c.name.lower() == label)
+            button = self._find(hwnd, lambda c: c.kind == "Button" and c.name.lower() in (label, "group " + label))
             if button is None:
                 raise WhatsAppError(f"I can't find the {label} button in WhatsApp.")
             self._click(button)
             return f"Calling {chat} ({label})."
 
-        return Prepared(chat, call, None)
+        return Prepared(chat, call, None, group=group)
 
     # -- helpers ------------------------------------------------------------------------
     def _main_window(self) -> int | None:

@@ -14,6 +14,7 @@ Zero cost: everything is open source and runs on your own laptop, on the CPU. No
 - **WhatsApp, safely:** "message Amma that I'll be late", "call Amma". It types the message, then waits: **nothing is sent or called until you tap Approve** on the phone.
 - **Telugu:** speak Telugu or Telugu mixed with English ("ammaki call cheyyi", "హైదరాబాద్‌లో వాతావరణం ఎలా ఉంది") and get the answer in Telugu.
 - **Reads the screen:** "summarize this page", "explain this error", "what's on my screen?".
+- **Works with other AI apps (MCP):** chat apps that support MCP can use PocketPilot's 22 tools, with the same allow-list and Approve rules ([details](#use-pocketpilot-from-other-ai-apps-mcp)).
 - **Android app (optional):** the same remote as an installable app, with no certificate warning, and it finds the laptop again when its Wi-Fi address changes ([details](#android-app)).
 
 **54 of 57 real tasks succeed (95%)** on a CPU-only laptop, across English, WhatsApp, Telugu and on-screen tasks ([how it was measured](#how-well-it-works)).
@@ -207,6 +208,35 @@ Tap **EN** next to the command box so it shows **తె**, then speak Telugu, or
 
 How it works: a Telugu-trained Whisper model (IIT Madras' Telugu Whisper-small, Apache-2.0) turns speech into Telugu text. Common commands are matched by Telugu phrase rules in `agent/telugu.py` (instant, no AI): it strips Telugu case endings (అమ్మ**కి**), turns Telugu-script English words back into English (స్క్రోల్ డౌన్ → scroll down) and maps family and city names (అక్క → Akka, హైదరాబాద్ → Hyderabad). Anything else goes to the local AI with a transliterated hint. Replies use Telugu templates; the phone's own Android voice speaks them, because Windows has no Telugu voice. On a CPU it takes 3–5 s for a 6–10 s sentence, with 2–10 % character errors on clear Telugu speech.
 
+## Use PocketPilot from other AI apps (MCP)
+
+**MCP** (Model Context Protocol) is the standard way AI apps use tools. PocketPilot includes an MCP
+server, `pocketpilot_mcp.py`, so an MCP-compatible chat app, for example one running your local Qwen3
+model through Ollama, can work on your laptop: "what's the weather in Hyderabad? then open Notepad".
+
+**Add it to an MCP app** as a **stdio** server (keep `python run.py` running):
+
+```json
+{
+  "command": "python",
+  "args": ["C:\\path\\to\\pocketpilot\\pocketpilot_mcp.py"]
+}
+```
+
+**Tools (22):** `pocketpilot` (any plain instruction, Telugu too), `open_app`, `open_website`, `web_search`,
+`weather`, `air_quality`, `wikipedia`, `define_word`, `convert_currency`, `news`, `history`, `read_screen`,
+`click`, `open_result`, `scroll`, `type_text`, `press_key`, `media`, `brightness`, `whatsapp_message`,
+`whatsapp_call`, `stop`.
+
+**Same rules as the phone:** the MCP server is only a bridge to the running PocketPilot, through a local
+API that answers **only programs on this laptop** and **only with the pairing token**. Every call becomes
+one allow-listed command; the phone shows what the AI app did ("AI app: …"); WhatsApp messages and calls
+are only drafted and wait for **Approve on your phone**, and there is no tool that can approve. If a name
+matches several chats ("Amma ❤️" / "Ammadu") it asks instead of guessing.
+
+**Test it** with the free MCP Inspector (needs Node.js):
+`npx @modelcontextprotocol/inspector python pocketpilot_mcp.py`
+
 ## How it works
 
 ```mermaid
@@ -239,6 +269,7 @@ flowchart LR
   - Understanding: `commands.py` (every allowed action), `router.py` (instant English phrases), `telugu.py` (Telugu rules and replies), `llm.py` (Ollama), `stt.py` (Whisper), `names.py` (learned WhatsApp names, sound-alike matching).
   - Doing: `executor.py`, `approvals.py`, `apps.py` (the only apps it can open), `windows.py` (bring windows forward, which app is in front), `grid.py`, `smart_click.py` (UI Automation + OCR), `results.py` (the nth result or video on screen), `whatsapp.py`, `task_agent.py` (plan-once tasks), `screen.py` + `explainer.py` (reading the screen), `memory.py` (history log), `laptop_voice.py` (wake word).
 - **skills/**: weather, air quality, Wikipedia, web search, websites, currency, dictionary (no keys); news and cricket (free keys).
+- **pocketpilot_mcp.py**: the MCP server for other AI apps (official MCP Python SDK). It forwards each tool call to the running PocketPilot's local API (`/api/run`, `/api/say` in `server/main.py`, laptop-only, token required).
 - **android_app/**: the Android app (Flutter). It shows the phone page in Android's web view and adds certificate pinning (`trust.dart` + `MainActivity.kt`), QR pairing, finding the laptop (`discovery.dart`, with `server/discovery.py` on the laptop), and speech/vibration (`web/native.js`).
 
 ## Safety
@@ -300,7 +331,7 @@ Phone test checklists for each version: [v2](docs/v2-commands.md), [v3](docs/v3-
 | **v4 Task agent** ✅ | Multi-step tasks, WhatsApp messages **and calls** with Approve, memory of what you did, currency/dictionary/news/cricket |
 | **v5 Telugu** ✅ | Telugu and Telugu–English voice commands, Telugu replies; "the second video", tabs |
 | v6 Android app | Installable app: finds the laptop when its address changes, no certificate warning |
-| v7 Macros + MCP | "Watch me once" skills, MCP server for other AI apps |
+| **v7 MCP** ✅ | Other AI apps (MCP) can use PocketPilot's 22 tools, with the same safety rules |
 
 Details: [docs/ROADMAP.md](docs/ROADMAP.md).
 

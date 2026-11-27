@@ -51,10 +51,13 @@ README with demo GIF + eval table, 60–90 s demo video, LinkedIn post.
   Wi-Fi address changes (UDP discovery), trusts only this laptop's own certificate (no warning), native
   speech (Telugu replies) and haptics; APK on GitHub Releases. No Wake-on-LAN button (owner's decision).
 
-## v7 — Macros + MCP (after launch, Feb 15 – Mar 14)
-- "Watch me once": record a task, turn it into a reusable skill ("do my morning setup").
-- MCP server exposing PocketPilot's skills to other AI apps (MCP Python SDK).
-- Done when: a recorded task replays correctly 3 times in a row; another AI app can call PocketPilot over MCP.
+## v7 — MCP ✅ (done; live-tested with the official MCP client over stdio, `docs/v7-tests.md`)
+- MCP server (`pocketpilot_mcp.py`, official MCP Python SDK v2, stdio) with 22 tools, forwarding to the
+  running PocketPilot through a local API (laptop-only, token required). Same allow-list, history log and
+  Approve on the phone; no tool can approve.
+- "Watch me once" macros: dropped (owner's decision).
+- Done when: another AI app can call PocketPilot over MCP. Verified with the official MCP Python client
+  (weather, history, open Notepad, WhatsApp draft/"which one?"); a chat-app demo was not run.
 
 ## Not doing
 Focus mode, paid APIs, automatic payments/booking, control over the internet (same Wi-Fi only).

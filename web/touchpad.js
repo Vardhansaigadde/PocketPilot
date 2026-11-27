@@ -10,6 +10,7 @@
   const SCROLL_PER_PX = 0.04;  // wheel notches per pixel of two-finger movement
   const EDGE_FRACTION = 0.12;  // one-finger scroll strip: the right 12% of the pad...
   const EDGE_MIN_PX = 32;      // ...but at least this wide
+  const EDGE_SPEED = 0.5;      // the strip scrolls at half the two-finger speed (one finger moves farther)
   const ZOOM_PX = 40;          // pinch distance per zoom step
   const SWIPE_PX = 45;         // three-finger swipe distance (fires while fingers are still down)
   const DOUBLE_MS = 280;       // tap, then touch again within this time = double-tap / tap-and-drag
@@ -283,7 +284,7 @@
     if (n === 1 && g.edge && g.maxTouches === 1) {
       if (!g.mode && g.moved > TAP_SLOP) { g.mode = 'edge'; flash('Scroll'); }
       if (g.mode === 'edge') {
-        const k = settings.scroll * SCROLL_PER_PX * (settings.natural ? 1 : -1);
+        const k = settings.scroll * SCROLL_PER_PX * EDGE_SPEED * (settings.natural ? 1 : -1);
         pend.sy += dy * k;
         queue();
       }

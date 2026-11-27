@@ -68,12 +68,11 @@ def main() -> None:
         ssl = {"ssl_certfile": str(certs.cert), "ssl_keyfile": str(certs.key)}
         ca_cert = certs.ca_cert
 
-    from server.discovery import Discovery, ca_fingerprint, network_of
+    from server.discovery import Discovery, ca_fingerprint
 
     scheme = "http" if args.http else "https"
     ca = ca_fingerprint(ca_cert) if ca_cert is not None else None
     url = pair_url(ip, args.port, token, scheme=scheme, ca=ca)
-    network = network_of(ip)
     if not args.no_discovery:
         Discovery(token, ip, args.port, ca).start()       # the Android app finds the laptop again
 
@@ -92,8 +91,7 @@ def main() -> None:
 
     controller = PynputController()
     assistant = None if args.no_voice else build_assistant(controller, args)
-    app = create_app(token=token, controller=controller, ca_cert=ca_cert, assistant=assistant,
-                     network=network)
+    app = create_app(token=token, controller=controller, ca_cert=ca_cert, assistant=assistant)
     if assistant is not None:
         assistant.notify = app.state.phones.broadcast_from_thread   # "Looking at your screen…"
         if assistant.agent is not None:

@@ -1,14 +1,10 @@
-"""v6: the Android app finds the laptop, pins its certificate, and gets what Wake-on-LAN needs."""
+"""v6: the Android app finds the laptop and pins its certificate."""
 
 import json
 import socket
 
-from fastapi.testclient import TestClient
-
-from server.discovery import ASK, Discovery, Network, answer, ca_fingerprint, network_of, tag
-from server.main import create_app
+from server.discovery import ASK, Discovery, answer, ca_fingerprint, tag
 from server.pairing import pair_url
-from tests.test_dispatch import FakeController
 
 TOKEN = "secret-token"
 
@@ -54,21 +50,3 @@ def test_ca_fingerprint_matches_the_certificate(tmp_path):
 def test_qr_link_carries_the_fingerprint_only_when_given():
     assert pair_url("1.2.3.4", 8765, "t") == "https://1.2.3.4:8765/?token=t"
     assert pair_url("1.2.3.4", 8765, "t", ca="ab") == "https://1.2.3.4:8765/?token=t&ca=ab"
-
-
-def test_network_of_an_unknown_ip_is_empty():
-    assert network_of("203.0.113.77") == Network("203.0.113.77", None, None)
-
-
-def test_hello_tells_the_paired_phone_the_mac():
-    net = Network("192.168.1.5", "10:5F:AD:00:00:01", "192.168.1.255")
-    app = create_app(token=TOKEN, controller=FakeController(), network=net)
-    with TestClient(app).websocket_connect(f"/ws?token={TOKEN}") as ws:
-        hello = ws.receive_json()
-    assert hello["mac"] == "10:5F:AD:00:00:01" and hello["broadcast"] == "192.168.1.255"
-
-
-def test_hello_without_network_info_has_no_mac():
-    app = create_app(token=TOKEN, controller=FakeController())
-    with TestClient(app).websocket_connect(f"/ws?token={TOKEN}") as ws:
-        assert "mac" not in ws.receive_json()

@@ -5,19 +5,17 @@ where <tag> is derived from the pairing token. The laptop answers with its curre
 address only when the tag matches, so other people on the same Wi-Fi learn nothing,
 and the token itself is never sent.
 
-Also: the laptop's Wi-Fi MAC and broadcast address, which the app needs for its
-Wake-on-LAN button, and the CA fingerprint the app pins (no "not private" warning).
+Also: the CA fingerprint the app pins, so it trusts this laptop without a
+"not private" warning.
 """
 
 from __future__ import annotations
 
 import hashlib
-import ipaddress
 import json
 import logging
 import socket
 import threading
-from dataclasses import dataclass
 from pathlib import Path
 
 log = logging.getLogger("pocketpilot.discovery")
@@ -39,33 +37,6 @@ def ca_fingerprint(ca_cert: Path) -> str:
 
     cert = x509.load_pem_x509_certificate(ca_cert.read_bytes())
     return hashlib.sha256(cert.public_bytes(serialization.Encoding.DER)).hexdigest()
-
-
-@dataclass(frozen=True)
-class Network:
-    ip: str
-    mac: str | None          # "10:5F:AD:B6:F7:BA" of the adapter that has `ip`
-    broadcast: str | None    # "192.168.1.255"
-
-
-def network_of(ip: str) -> Network:
-    """The MAC and broadcast address of the network card that has this IP."""
-    try:
-        import psutil
-    except ImportError:
-        return Network(ip, None, None)
-    for addrs in psutil.net_if_addrs().values():
-        v4 = next((a for a in addrs if a.family == socket.AF_INET and a.address == ip), None)
-        if v4 is None:
-            continue
-        link = next((a for a in addrs if a.family == psutil.AF_LINK), None)
-        mac = link.address.replace("-", ":").upper() if link and link.address else None
-        broadcast = None
-        if v4.netmask:
-            net = ipaddress.ip_network(f"{ip}/{v4.netmask}", strict=False)
-            broadcast = str(net.broadcast_address)
-        return Network(ip, mac, broadcast)
-    return Network(ip, None, None)
 
 
 def answer(packet: bytes, token: str, ip: str, port: int, ca: str | None) -> bytes | None:

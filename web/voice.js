@@ -31,11 +31,14 @@
   const TELUGU = /[ఀ-౿]/;
 
   function speak(text) {
-    if (!PP.settings.speak || !('speechSynthesis' in window)) return;
+    if (!PP.settings.speak) return;
+    const lang = TELUGU.test(text) ? 'te-IN' : 'en-IN';   // the phone's Google voice speaks Telugu
+    if (PPNative.speak(text, lang)) return;                // inside the Android app
+    if (!('speechSynthesis' in window)) return;
     try {
       speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = TELUGU.test(text) ? 'te-IN' : 'en-IN';   // the phone's Google voice speaks Telugu
+      u.lang = lang;
       speechSynthesis.speak(u);
     } catch { /* speech is optional */ }
   }
@@ -84,10 +87,10 @@
   // ---- Stop (kill switch) -------------------------------------------------------
   $('#stopBtn').addEventListener('click', () => {
     if (recording) cancelRecording();
-    if ('speechSynthesis' in window) speechSynthesis.cancel();
+    PPNative.stopSpeaking();
     closeApproval();
     PP.send({ t: 'stop' });
-    if (navigator.vibrate) navigator.vibrate([20, 40, 20]);
+    PPNative.vibrate([20, 40, 20]);
   });
 
   // ---- Approve card -----------------------------------------------------------
@@ -117,7 +120,7 @@
       list.appendChild(b);
     });
     if (typeof chooseDlg.showModal === 'function' && !chooseDlg.open) chooseDlg.showModal();
-    if (navigator.vibrate) navigator.vibrate(20);
+    PPNative.vibrate(20);
   }
 
   function closeChoices() {
@@ -142,7 +145,7 @@
     tick();
     approvalTimer = setInterval(tick, 1000);
     if (typeof dlg.showModal === 'function') dlg.showModal();
-    if (navigator.vibrate) navigator.vibrate(30);
+    PPNative.vibrate(30);
   }
 
   function closeApproval() {
@@ -210,7 +213,7 @@
     if (on) {
       clearTimeout(stopTimer);
       stopTimer = setTimeout(stopRecording, Math.max(1000, MAX_LOCKED_MS - (Date.now() - startedAt)));
-      if (navigator.vibrate) navigator.vibrate(20);
+      PPNative.vibrate(20);
     }
   }
 
@@ -240,8 +243,8 @@
     mic.classList.add('rec');
     setLocked(false);
     recordingUI(true);
-    if (navigator.vibrate) navigator.vibrate(15);
-    if ('speechSynthesis' in window) speechSynthesis.cancel();
+    PPNative.vibrate(15);
+    PPNative.stopSpeaking();
     stopTimer = setTimeout(stopRecording, MAX_REC_MS);
   }
 

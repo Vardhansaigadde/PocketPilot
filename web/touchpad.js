@@ -125,7 +125,7 @@
     }
   }
 
-  const buzz = (ms) => { if (navigator.vibrate) navigator.vibrate(ms); };
+  const buzz = (ms) => PPNative.vibrate(ms);
   const click = (button) => { send({ t: 'click', button }); buzz(8); };
 
   // ---- gestures -----------------------------------------------------------

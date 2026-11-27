@@ -112,7 +112,7 @@ def test_type_keeps_original_case():
         "   ",
         "open the thing I used yesterday",
         "what is this",
-        "make it brighter",
+        "make it feel brighter in here",   # not a screen brightness command
         "I want to write some code",    # must not type "some code"
         "write an email to my teacher",
     ],

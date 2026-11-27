@@ -5,14 +5,14 @@ from __future__ import annotations
 import asyncio
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from fastapi import FastAPI, Response, WebSocket, WebSocketDisconnect, status
 from fastapi.staticfiles import StaticFiles
 
 from .input_control import Controller, dispatch
 from .pairing import check_token
-from .protocol import MAX_AUDIO_BYTES, Approve, BadMessage, Lang, Say, Stop, parse_message
+from .protocol import MAX_AUDIO_BYTES, Approve, BadMessage, Brightness, Lang, Say, Stop, parse_message
 
 if TYPE_CHECKING:
     from agent.assistant import Assistant
@@ -59,6 +59,7 @@ def create_app(
     web_dir: Path = WEB_DIR,
     ca_cert: Path | None = None,
     assistant: Assistant | None = None,
+    brightness: Any = None,
 ) -> FastAPI:
     """Build the server. `ca_cert` is the public CA certificate the phone may install."""
     app = FastAPI(title="PocketPilot", docs_url=None, redoc_url=None, openapi_url=None)
@@ -138,6 +139,9 @@ def create_app(
                         # Straight away, not queued behind a slow command.
                         await phones.broadcast(await asyncio.to_thread(assistant.stop))
                     continue
+                if isinstance(msg, Brightness):
+                    await ws.send_json(await asyncio.to_thread(_brightness_reply, brightness, msg.change))
+                    continue
                 if isinstance(msg, Lang):
                     if assistant is not None:
                         await ws.send_json(assistant.set_lang(msg.lang)[0] | {"quiet": True})
@@ -170,3 +174,15 @@ def create_app(
     # Mounted last so /ws above takes priority. html=True serves index.html at "/".
     app.mount("/", StaticFiles(directory=web_dir, html=True), name="web")
     return app
+
+
+def _brightness_reply(brightness: Any, change: str) -> dict:
+    """The phone's ☀ buttons work even without voice (python run.py --no-voice)."""
+    from agent.brightness import BrightnessError
+
+    if brightness is None:
+        return {"t": "reply", "text": "Brightness control isn't available.", "ok": False}
+    try:
+        return {"t": "reply", "text": f"Brightness {brightness.change(change)}%.", "ok": True, "quiet": True}
+    except BrightnessError as exc:
+        return {"t": "reply", "text": str(exc), "ok": False}

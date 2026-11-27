@@ -104,8 +104,9 @@ The code is in [`android_app/`](android_app/).
 | 3-finger swipe left / right | Switch apps |
 | 3-finger swipe up / down | All windows / show desktop |
 | Shortcut buttons | Switch app, Desktop, All windows, Copy, Paste in one tap |
+| 1 finger slide along the right edge | Scroll (the dotted scroll strip; turn it off in settings) |
 | ⌨ Type | Your phone keyboard types on the laptop |
-| Bottom buttons | Esc, Tab, Enter, Backspace, arrows, copy/paste, volume, play/pause |
+| Bottom buttons | Esc, Tab, Enter, Backspace, arrows, copy/paste, screen brightness, volume, play/pause |
 
 The top bar shows the round-trip time to the laptop, so you can see the lag.
 
@@ -118,6 +119,7 @@ Hold the **mic** on the phone and speak, or **slide it right to lock** and talk 
 | "scroll down", "scroll up a lot", "click", "right click", "double click" | Mouse |
 | "type hello world", "press enter", "copy", "paste", "undo", "select all" | Keyboard |
 | "volume up", "mute", "pause", "next song" | Media keys |
+| "brightness up", "make the screen darker", "brightness 50", "max brightness", "బ్రైట్‌నెస్ పెంచు" | Laptop screen brightness (also the ☀ buttons on the phone). Works on the laptop's own screen, not on most external monitors |
 | "switch app", "show desktop" | Windows shortcuts |
 | "open Chrome / Edge / Notepad / Calculator / File Explorer / Settings / WhatsApp / Spotify / VS Code / Paint / Word / Excel / PowerPoint / Camera" | Opens that app |
 | "close the window" | Asks **Approve** on the phone first |

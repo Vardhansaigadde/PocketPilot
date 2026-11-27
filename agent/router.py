@@ -16,7 +16,7 @@ from .apps import app_list_text, find_app
 from .commands import (
     GRID_CELLS, CricketCmd, CurrencyCmd, DefineCmd, NewsCmd, UnknownCmd, AirQualityCmd, ClickCmd, CloseWindowCmd, Command, GoToCmd, GridClickCmd, GridCmd,
     ForgetCmd, GridZoomCmd, HotkeyCmd, KeepAwakeCmd, KeyCmd, MemoryCmd, WakeScreenCmd, MediaCmd, OpenAppCmd, ScreenCmd, ScrollCmd, SearchCmd, SmartClickCmd, StopCmd,
-    OpenResultCmd, TypeCmd, WhatsAppCmd,
+    BrightnessCmd, OpenResultCmd, TypeCmd, WhatsAppCmd,
     WeatherCmd, WikiCmd,
 )
 
@@ -327,6 +327,35 @@ _COOKIES = re.compile(
 )
 
 
+# "brightness up", "make the screen darker", "brightness 50", "set brightness to 70 percent"
+_BRIGHT_UP = re.compile(
+    r"^(?:(?:turn |put )?(?:the )?(?:screen )?brightness (?:up|higher|more)|(?:increase|raise|boost) (?:the )?"
+    r"(?:screen )?brightness|(?:make (?:it|the screen|my screen) )?brighter(?: screen)?|screen brighter)$")
+_BRIGHT_DOWN = re.compile(
+    r"^(?:(?:turn |put )?(?:the )?(?:screen )?brightness (?:down|lower|less)|(?:decrease|lower|reduce|dim) (?:the )?"
+    r"(?:screen )?brightness|dim (?:the |my )?screen|(?:make (?:it|the screen|my screen) )?(?:dimmer|darker)"
+    r"(?: screen)?|screen (?:dimmer|darker))$")
+_BRIGHT_SET = re.compile(
+    r"^(?:set |change |put )?(?:the )?(?:screen )?brightness (?:to |at )?(?P<n>\d{1,3}|[a-z]+(?: [a-z]+)?)"
+    r"(?: ?%| percent)?$")
+_BRIGHT_EXTREME = re.compile(r"^(?P<w>max|maximum|full|highest|min|minimum|lowest) (?:screen )?brightness$")
+
+
+def _brightness_cmd(low: str) -> BrightnessCmd | None:
+    if _BRIGHT_UP.match(low):
+        return BrightnessCmd(action="brightness", change="up")
+    if _BRIGHT_DOWN.match(low):
+        return BrightnessCmd(action="brightness", change="down")
+    if m := _BRIGHT_EXTREME.match(low):
+        high = m.group("w") in ("max", "maximum", "full", "highest")
+        return BrightnessCmd(action="brightness", change="set", level=100 if high else 5)
+    if m := _BRIGHT_SET.match(low):
+        n = _number(m.group("n"))
+        if n is not None and 0 <= n <= 100:
+            return BrightnessCmd(action="brightness", change="set", level=n)
+    return None
+
+
 def _cookies_cmd(low: str) -> SmartClickCmd | None:
     m = _COOKIES.match(low)
     if not m:
@@ -380,6 +409,9 @@ def fast_path(text: str) -> Command | None:
                 button="right" if kind == "right click" else "left",
                 count=2 if kind.startswith("double") else 1,
             )
+
+    if cmd := _brightness_cmd(low):
+        return cmd
 
     if cmd := _cookies_cmd(low):                      # the consent banner's Accept / Reject button
         return cmd

@@ -131,6 +131,12 @@ class Stop(BaseModel):
     t: Literal["stop"]
 
 
+class Brightness(BaseModel):
+    """The ☀ buttons on the phone: laptop screen brightness up / down."""
+    t: Literal["brightness"]
+    change: Literal["up", "down"]
+
+
 class Lang(BaseModel):
     """Voice language switch on the phone: English or Telugu (v5)."""
     t: Literal["lang"]
@@ -140,7 +146,7 @@ class Lang(BaseModel):
 MAX_AUDIO_BYTES = 2 * 1024 * 1024   # a recorded voice command (binary frame)
 
 Message = Annotated[
-    Union[Move, Click, Button, Scroll, Zoom, Key, Text, Hotkey, Media, Ping, Say, Approve, Stop, Lang],
+    Union[Move, Click, Button, Scroll, Zoom, Key, Text, Hotkey, Media, Ping, Say, Approve, Stop, Lang, Brightness],
     Field(discriminator="t"),
 ]
 

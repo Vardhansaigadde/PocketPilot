@@ -8,6 +8,8 @@
   const LONG_MS = 450;         // hold this long without moving to start a drag
   const LONG_SLOP = 8;
   const SCROLL_PER_PX = 0.04;  // wheel notches per pixel of two-finger movement
+  const EDGE_FRACTION = 0.12;  // one-finger scroll strip: the right 12% of the pad...
+  const EDGE_MIN_PX = 32;      // ...but at least this wide
   const ZOOM_PX = 40;          // pinch distance per zoom step
   const SWIPE_PX = 45;         // three-finger swipe distance (fires while fingers are still down)
   const DOUBLE_MS = 280;       // tap, then touch again within this time = double-tap / tap-and-drag
@@ -22,7 +24,7 @@
   };
 
   const settings = Object.assign(
-    { sensitivity: 1.4, accel: 1.0, scroll: 1.0, natural: true, hints: true, speak: true, tapDrag: true, lang: 'en' },
+    { sensitivity: 1.4, accel: 1.0, scroll: 1.0, natural: true, hints: true, speak: true, tapDrag: true, lang: 'en', edgeScroll: true },
     store.get('pp_settings', {}),
   );
 
@@ -166,7 +168,7 @@
     last: null, lastT: 0, lastSpread: 0,
     mode: null, pinchAcc: 0, panAcc: 0, zoomAcc: 0,
     tx: 0, ty: 0, longTimer: null, dragging: false,
-    swiped: false, secondTap: false,
+    swiped: false, secondTap: false, edge: false,
   };
   // Double-tap state: a single tap waits DOUBLE_MS before clicking, in case a second touch follows.
   let pendingTap = null;
@@ -174,8 +176,15 @@
   function resetGesture() {
     Object.assign(g, {
       active: false, maxTouches: 0, moved: 0, mode: null,
-      pinchAcc: 0, panAcc: 0, zoomAcc: 0, tx: 0, ty: 0, swiped: false, secondTap: false,
+      pinchAcc: 0, panAcc: 0, zoomAcc: 0, tx: 0, ty: 0, swiped: false, secondTap: false, edge: false,
     });
+  }
+
+  // One finger that starts on the right edge scrolls, like a laptop touchpad's scroll strip.
+  function inScrollStrip(touch) {
+    if (!settings.edgeScroll) return false;
+    const r = pad.getBoundingClientRect();
+    return r.right - touch.clientX <= Math.max(EDGE_MIN_PX, r.width * EDGE_FRACTION);
   }
 
   function startDrag(label) {
@@ -233,6 +242,10 @@
       // Tap followed by a multi-finger gesture: let the first tap click now.
       clearTimeout(pendingTap); pendingTap = null; click('left');
     }
+    if (n === 1 && !g.dragging && !pendingTap && g.maxTouches === 1 && inScrollStrip(e.touches[0])) {
+      g.edge = true;                     // scroll strip: no drag timer, movement scrolls
+      return;
+    }
     if (n === 1 && !g.dragging) {
       if (pendingTap) {
         // Second touch right after a tap: hold the button. Move = drag, lift quickly = double-click.
@@ -264,6 +277,16 @@
       // Once three fingers touched, only the swipe counts (no scrolling or cursor jumps
       // while the fingers lift one by one).
       if (n >= 3 || !g.swiped) { g.tx += dx; g.ty += dy; checkSwipe(); }
+      return;
+    }
+
+    if (n === 1 && g.edge && g.maxTouches === 1) {
+      if (!g.mode && g.moved > TAP_SLOP) { g.mode = 'edge'; flash('Scroll'); }
+      if (g.mode === 'edge') {
+        const k = settings.scroll * SCROLL_PER_PX * (settings.natural ? 1 : -1);
+        pend.sy += dy * k;
+        queue();
+      }
       return;
     }
 
@@ -362,6 +385,9 @@
     b.addEventListener('click', () => { send({ t: 'hotkey', combo: b.dataset.hotkey }); buzz(6); }));
   document.querySelectorAll('[data-media]').forEach((b) =>
     b.addEventListener('click', () => { send({ t: 'media', key: b.dataset.media }); buzz(6); }));
+  // Laptop screen brightness (the laptop answers "Brightness 60%." in the reply bubble)
+  document.querySelectorAll('[data-bright]').forEach((b) =>
+    b.addEventListener('click', () => { send({ t: 'brightness', change: b.dataset.bright }); buzz(6); }));
 
   $('#arrowsBtn').addEventListener('click', (e) => {
     const box = $('#arrows');
@@ -424,6 +450,8 @@
       $('#' + id + 'Out').textContent = Number(settings[key]).toFixed(1);
     }
     $('#natural').checked = settings.natural;
+    $('#edgeScroll').checked = settings.edgeScroll !== false;
+    pad.classList.toggle('edge-scroll', settings.edgeScroll !== false);
     $('#hints').checked = settings.hints;
     $('#tapdrag').checked = settings.tapDrag !== false;
     $('#hint').hidden = !settings.hints;
@@ -437,6 +465,7 @@
     });
   }
   $('#natural').addEventListener('change', (e) => { settings.natural = e.target.checked; store.set('pp_settings', settings); });
+  $('#edgeScroll').addEventListener('change', (e) => { settings.edgeScroll = e.target.checked; store.set('pp_settings', settings); applySettings(); });
   $('#hints').addEventListener('change', (e) => { settings.hints = e.target.checked; store.set('pp_settings', settings); applySettings(); });
   $('#tapdrag').addEventListener('change', (e) => { settings.tapDrag = e.target.checked; store.set('pp_settings', settings); });
   $('#settingsBtn').addEventListener('click', () => {

@@ -25,7 +25,7 @@ from .commands import (
     GRID_CELLS, AirQualityCmd, ClickCmd, CricketCmd, CurrencyCmd, DefineCmd, NewsCmd, CloseWindowCmd, Command, GoToCmd, GridClickCmd, GridCmd,
     ForgetCmd, GridZoomCmd, KeepAwakeCmd, MemoryCmd, TaskCmd, WakeScreenCmd, WhatsAppCmd,
     OpenResultCmd, ScreenCmd, SmartClickCmd,
-    HotkeyCmd, KeyCmd, MediaCmd, OpenAppCmd, ScrollCmd, SearchCmd, StopCmd, TypeCmd,
+    BrightnessCmd, HotkeyCmd, KeyCmd, MediaCmd, OpenAppCmd, ScrollCmd, SearchCmd, StopCmd, TypeCmd,
     UnknownCmd, WeatherCmd, WikiCmd,
 )
 
@@ -169,6 +169,7 @@ class Executor:
         summarize: Callable[[str], str] | None = None,
         whatsapp: Messenger | None = None,
         awake: Any = None,
+        brightness: Any = None,
         locked: Callable[[], bool] = lambda: False,
         clock: Callable[[], float] = time.monotonic,
         front: Callable[[], str] | None = None,
@@ -187,6 +188,7 @@ class Executor:
         self.memory = memory
         self.summarize = summarize   # text model, for long histories
         self.whatsapp = whatsapp
+        self.brightness = brightness   # brightness.Brightness (laptop screen)
         self.awake = awake       # keep_awake.KeepAwake
         self.locked = locked     # is the Windows lock screen showing?
         self.clock = clock
@@ -217,6 +219,8 @@ class Executor:
         if isinstance(cmd, MediaCmd):
             self.ctl.media(cmd.key)
             return Outcome(_SAY_MEDIA[cmd.key])
+        if isinstance(cmd, BrightnessCmd):
+            return self._brightness(cmd)
         if isinstance(cmd, HotkeyCmd):
             if cmd.combo in ("close_tab", "reopen_tab"):
                 return self._tab(cmd.combo)
@@ -406,6 +410,17 @@ class Executor:
             pending = self.approvals.request(f'Click "{name}"?', click)
             return Outcome(f"Approve on your phone to click {name}.", approval=pending)
         return Outcome(click())
+
+    def _brightness(self, cmd: BrightnessCmd) -> Outcome:
+        from .brightness import BrightnessError
+
+        if self.brightness is None:
+            return Outcome("Brightness control isn't available.", ok=False)
+        try:
+            level = self.brightness.change(cmd.change, cmd.level)
+        except BrightnessError as exc:
+            return Outcome(str(exc), ok=False)
+        return Outcome(f"Brightness {level}%.")
 
     def _tab(self, combo: str) -> Outcome:
         """Ctrl+W closes a TAB only in browsers, Notepad and VS Code. In other apps it can

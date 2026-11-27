@@ -32,6 +32,8 @@
       <symbol id="i-right" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></symbol>
       <symbol id="i-vol-down" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></symbol>
       <symbol id="i-vol-up" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></symbol>
+      <symbol id="i-bright-down" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 4h.01M12 20h.01M4 12h.01M20 12h.01M6.3 6.3h.01M17.7 17.7h.01M6.3 17.7h.01M17.7 6.3h.01"/></symbol>
+      <symbol id="i-bright-up" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
       <symbol id="i-mute" viewBox="0 0 24 24"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="m22 9-6 6M16 9l6 6"/></symbol>
       <symbol id="i-prev" viewBox="0 0 24 24"><path d="M19 20 9 12l10-8v16ZM5 19V5"/></symbol>
       <symbol id="i-playpause" viewBox="0 0 24 24"><path d="M4 5v14l9-7-9-7ZM16 5v14M20 5v14"/></symbol>
@@ -122,7 +124,9 @@
     <button class="key" data-key="right" aria-label="Right arrow"><svg class="i" aria-hidden="true"><use href="#i-right"/></svg></button>
   </section>
 
-  <section class="row media" aria-label="Media">
+  <section class="row media" aria-label="Brightness and media">
+    <button class="key" data-bright="down" aria-label="Screen brightness down"><svg class="i" aria-hidden="true"><use href="#i-bright-down"/></svg></button>
+    <button class="key" data-bright="up" aria-label="Screen brightness up"><svg class="i" aria-hidden="true"><use href="#i-bright-up"/></svg></button>
     <button class="key" data-media="volume_down" aria-label="Volume down"><svg class="i" aria-hidden="true"><use href="#i-vol-down"/></svg></button>
     <button class="key" data-media="mute" aria-label="Mute"><svg class="i" aria-hidden="true"><use href="#i-mute"/></svg></button>
     <button class="key" data-media="volume_up" aria-label="Volume up"><svg class="i" aria-hidden="true"><use href="#i-vol-up"/></svg></button>
@@ -148,6 +152,7 @@
       </label>
       <label class="switch"><span>Tap, then hold to drag<small>Double-tap = double-click. Taps wait a moment for a second tap.</small></span><input id="tapdrag" type="checkbox"></label>
       <label class="switch"><span>Natural scrolling<small>Content follows your fingers</small></span><input id="natural" type="checkbox"></label>
+      <label class="switch"><span>One-finger scroll strip<small>Slide one finger up or down along the right edge of the pad</small></span><input id="edgeScroll" type="checkbox"></label>
       <label class="switch"><span>Speak replies out loud</span><input id="speak" type="checkbox"></label>
       <label class="switch"><span>Show gesture hints</span><input id="hints" type="checkbox"></label>
       <button class="primary">Done</button>

@@ -38,6 +38,7 @@ Reply with JSON only. Choose "action" from:
 - grid: show true/false (numbered grid over the screen for clicking)
 - grid_click: cell 1-{GRID_CELLS}, button, count
 - grid_zoom: cell (split that grid box into 9 smaller boxes)
+- brightness: change = up | down | set, level = 5-100 (only with set). Laptop screen brightness.
 - click_on: target = the name of a button, link or tab on screen, button, count
 - open_result: n = which search result or video on screen (1 = first, -1 = last), kind = result | video | link
 - screen: mode describe (what's on screen, what am I doing/looking at) / summarize (what a page or article

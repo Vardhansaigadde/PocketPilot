@@ -91,7 +91,11 @@ def main() -> None:
 
     controller = PynputController()
     assistant = None if args.no_voice else build_assistant(controller, args)
-    app = create_app(token=token, controller=controller, ca_cert=ca_cert, assistant=assistant)
+    from agent.brightness import Brightness
+
+    brightness = assistant.executor.brightness if assistant is not None else Brightness()
+    app = create_app(token=token, controller=controller, ca_cert=ca_cert, assistant=assistant,
+                     brightness=brightness)
     if assistant is not None:
         assistant.notify = app.state.phones.broadcast_from_thread   # "Looking at your screen…"
         if assistant.agent is not None:
@@ -124,6 +128,7 @@ def build_assistant(controller, args):  # noqa: ANN001, ANN201 - kept simple for
         from agent.explainer import ScreenExplainer
         from agent.grid import TkGrid
         from agent.llm import OllamaPlanner
+        from agent.brightness import Brightness
         from agent.names import KnownNames
         from agent.keep_awake import KeepAwake, screen_locked
         from agent.memory import Memory
@@ -157,7 +162,7 @@ def build_assistant(controller, args):  # noqa: ANN001, ANN201 - kept simple for
                         clicker=clicker, screen=explainer,
                         memory=memory, summarize=explainer.summarize_history,
                         whatsapp=WhatsApp(controller, contacts=list(cfg.contacts), known=known),
-                        awake=awake, locked=screen_locked)
+                        awake=awake, locked=screen_locked, brightness=Brightness())
     planner.warm_up()
     transcriber = WhisperTranscriber(cfg.whisper_model, names=cfg.contacts, known=known,
                                      telugu_model=cfg.telugu_whisper)

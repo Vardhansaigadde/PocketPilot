@@ -23,7 +23,7 @@ from skills.websites import resolve as resolve_site
 
 from .apps import find_app
 from .commands import (
-    ClickCmd, Command, GoToCmd, HotkeyCmd, GridClickCmd, GridCmd, MediaCmd, NewsCmd, OpenAppCmd, ScrollCmd,
+    BrightnessCmd, ClickCmd, Command, GoToCmd, HotkeyCmd, GridClickCmd, GridCmd, MediaCmd, NewsCmd, OpenAppCmd, ScrollCmd,
     SearchCmd, SmartClickCmd, StopCmd, WakeScreenCmd, WeatherCmd, WhatsAppCmd,
 )
 
@@ -95,7 +95,7 @@ LOANWORDS = {
     "బ్రౌజర్": "browser", "ఫైల్": "file", "ఫోల్డర్": "folder", "ఆఫీస్": "office", "షో": "show", "హైడ్": "hide",
     "జూమ్": "zoom", "ఇన్": "in", "అవుట్": "out", "ఆఫ్": "off", "ఆన్": "on", "రీడ్": "read", "ఎక్స్‌ప్లెయిన్": "explain",
     "స్లీప్": "sleep", "వేక్": "wake", "లాక్": "lock", "టైమ్": "time", "డేట్": "date", "క్రికెట్": "cricket",
-    "స్కోర్": "score", "రిజల్ట్": "result", "వెబ్‌సైట్": "website", "లింక్": "link", "ఫస్ట్": "first",
+    "స్కోర్": "score", "బ్రైట్‌నెస్": "brightness", "బ్రైట్నెస్": "brightness", "వెలుతురు": "brightness", "రిజల్ట్": "result", "వెబ్‌సైట్": "website", "లింక్": "link", "ఫస్ట్": "first",
     "సెకండ్": "second", "థర్డ్": "third", "లాస్ట్": "last", "అమెజాన్": "amazon", "ఇన్‌స్టాగ్రామ్": "instagram", "జీమెయిల్": "gmail",
 }
 
@@ -269,6 +269,15 @@ def to_command(text: str) -> Command | None:
     if x.match(r"(?:aapu|aagu|aapeyi|aapandi|stop)(?: " + _DO + ")?"):
         return StopCmd(action="stop")
 
+    # brightness: "brightness penchu", "బ్రైట్‌నెస్ తగ్గించు", "brightness 50 pettu"
+    if x.match(r"(?:screen )?brightness (?:penchu|ekkuva|up|ekkuva cheyyi)(?: " + _DO + ")?"):
+        return BrightnessCmd(action="brightness", change="up")
+    if x.match(r"(?:screen )?brightness (?:tagginchu|takkuva|down|takkuva cheyyi)(?: " + _DO + ")?"):
+        return BrightnessCmd(action="brightness", change="down")
+    if m := x.match(r"(?:screen )?brightness (?P<n>\d{1,3})(?: percent| shaatam)?(?: (?:pettu|cheyyi|chey))?"):
+        if 0 <= int(m.group("n")) <= 100:
+            return BrightnessCmd(action="brightness", change="set", level=int(m.group("n")))
+
     # tabs: "tab close cheyyi", "ee tab mooseyyi", "tab malli open cheyyi", "kotta tab"
     if x.match(r"(?:ee )?tab (?:close|mooseyyi|mooseyi|moosey|moosivey|moosiveyi|moosu)(?: " + _DO + ")?"):
         return HotkeyCmd(action="hotkey", combo="close_tab")
@@ -413,6 +422,7 @@ def _weather_te(m: re.Match) -> str:
 # (English reply pattern, Telugu reply or function). First match wins.
 _REPLIES: list[tuple[str, Any]] = [
     (r"Closed the tab\.", "ట్యాబ్ మూసేశాను."),
+    (r"Brightness (?P<n>\d+)%\.", "బ్రైట్‌నెస్ {n}%."),
     (r"This tab has unsaved changes.*", "ఈ ట్యాబ్‌లో సేవ్ చేయని మార్పులు ఉన్నాయి. సేవ్ చేయాలా అని అడుగుతోంది, ల్యాప్‌టాప్‌లో ఎంచుకోండి. లేదా ప్రెస్ ఎస్కేప్ అని చెప్పండి."),
     (r"Reopened the last closed tab\.", "మూసిన ట్యాబ్ మళ్ళీ తెరిచాను."),
     (r"New tab\.", "కొత్త ట్యాబ్ తెరిచాను."),

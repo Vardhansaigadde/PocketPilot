@@ -51,6 +51,13 @@ class MediaCmd(_Cmd):
     key: MEDIA
 
 
+class BrightnessCmd(_Cmd):
+    """Laptop screen brightness: up / down by 10 %, or set to a level (5-100 %)."""
+    action: Literal["brightness"]
+    change: Literal["up", "down", "set"]
+    level: int | None = Field(default=None, ge=0, le=100)
+
+
 class HotkeyCmd(_Cmd):
     action: Literal["hotkey"]
     combo: HOTKEYS
@@ -208,7 +215,7 @@ class UnknownCmd(_Cmd):
 
 Command = Annotated[
     Union[
-        ScrollCmd, ClickCmd, TypeCmd, KeyCmd, MediaCmd, HotkeyCmd, OpenAppCmd,
+        ScrollCmd, ClickCmd, TypeCmd, KeyCmd, MediaCmd, BrightnessCmd, HotkeyCmd, OpenAppCmd,
         CloseWindowCmd, GridCmd, GridClickCmd, GridZoomCmd, SmartClickCmd, OpenResultCmd, ScreenCmd, WhatsAppCmd, WakeScreenCmd, KeepAwakeCmd, MemoryCmd, ForgetCmd, WeatherCmd, AirQualityCmd, WikiCmd,
         CurrencyCmd, DefineCmd, NewsCmd, CricketCmd, GoToCmd, SearchCmd, TaskCmd, StopCmd, UnknownCmd,
     ],

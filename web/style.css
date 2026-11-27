@@ -127,6 +127,17 @@ button.on { background: var(--surface-2); border-color: var(--border-strong); }
 .icon-btn { width: var(--tap); flex: none; border-radius: 50%; background: var(--surface); }
 
 /* ---- touchpad ----------------------------------------------------------------- */
+/* One-finger scroll strip on the right edge (setting "One-finger scroll strip"). */
+.pad.edge-scroll::after {
+  content: "";
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  right: max(16px, 6%);
+  width: 0;
+  border-right: 2px dotted rgba(255, 255, 255, 0.14);
+  pointer-events: none;
+}
 .pad {
   position: relative;
   flex: 1;
@@ -315,7 +326,7 @@ button.on { background: var(--surface-2); border-color: var(--border-strong); }
 
 /* ---- key rows ------------------------------------------------------------------------ */
 .row { display: grid; grid-template-columns: 1.6fr repeat(5, 1fr); gap: 6px; }
-.row.media { grid-template-columns: repeat(6, 1fr); }
+.row.media { grid-template-columns: repeat(8, 1fr); gap: 4px; }   /* ☀− ☀+ then volume and music */
 .row.arrows { grid-template-columns: repeat(4, 1fr); }
 .row[hidden] { display: none; }
 .key { height: var(--tap); font-size: 14px; font-weight: 600; }

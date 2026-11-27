@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from fastapi import FastAPI, Response, WebSocket, WebSocketDisconnect, status
 from fastapi.staticfiles import StaticFiles
@@ -59,6 +59,7 @@ def create_app(
     web_dir: Path = WEB_DIR,
     ca_cert: Path | None = None,
     assistant: Assistant | None = None,
+    network: Any = None,
 ) -> FastAPI:
     """Build the server. `ca_cert` is the public CA certificate the phone may install."""
     app = FastAPI(title="PocketPilot", docs_url=None, redoc_url=None, openapi_url=None)
@@ -102,6 +103,9 @@ def create_app(
             "t": "hello", "name": "PocketPilot", "version": "0.2.0",
             "voice": assistant is not None and assistant.transcriber is not None,
             "assistant": assistant is not None,
+            # For the Android app's Wake-on-LAN button; only paired phones get here.
+            **({"mac": network.mac, "broadcast": network.broadcast}
+               if network is not None and network.mac else {}),
         })
         tasks: set[asyncio.Task] = set()
 

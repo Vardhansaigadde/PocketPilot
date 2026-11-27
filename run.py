@@ -28,6 +28,8 @@ def main() -> None:
                         help="plain HTTP instead of HTTPS (the phone mic won't work)")
     parser.add_argument("--no-voice", action="store_true", help="touchpad only, no voice commands")
     parser.add_argument("--no-wake", action="store_true", help="don't use the laptop mic / wake word")
+    parser.add_argument("--no-discovery", action="store_true",
+                        help="don't answer the Android app when it looks for this laptop")
     parser.add_argument("--model", help="Ollama model name (default qwen3:4b, or POCKETPILOT_MODEL)")
     args = parser.parse_args()
 
@@ -66,8 +68,14 @@ def main() -> None:
         ssl = {"ssl_certfile": str(certs.cert), "ssl_keyfile": str(certs.key)}
         ca_cert = certs.ca_cert
 
+    from server.discovery import Discovery, ca_fingerprint, network_of
+
     scheme = "http" if args.http else "https"
-    url = pair_url(ip, args.port, token, scheme=scheme)
+    ca = ca_fingerprint(ca_cert) if ca_cert is not None else None
+    url = pair_url(ip, args.port, token, scheme=scheme, ca=ca)
+    network = network_of(ip)
+    if not args.no_discovery:
+        Discovery(token, ip, args.port, ca).start()       # the Android app finds the laptop again
 
     print("\n  PocketPilot is starting.")
     print("  Scan this QR code with your phone camera (same Wi-Fi as this laptop):\n")
@@ -84,7 +92,8 @@ def main() -> None:
 
     controller = PynputController()
     assistant = None if args.no_voice else build_assistant(controller, args)
-    app = create_app(token=token, controller=controller, ca_cert=ca_cert, assistant=assistant)
+    app = create_app(token=token, controller=controller, ca_cert=ca_cert, assistant=assistant,
+                     network=network)
     if assistant is not None:
         assistant.notify = app.state.phones.broadcast_from_thread   # "Looking at your screen…"
         if assistant.agent is not None:

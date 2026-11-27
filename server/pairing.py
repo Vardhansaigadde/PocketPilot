@@ -52,8 +52,11 @@ def get_lan_ip() -> str:
     return ip
 
 
-def pair_url(ip: str, port: int, token: str, scheme: str = "https") -> str:
-    return f"{scheme}://{ip}:{port}/?token={token}"
+def pair_url(ip: str, port: int, token: str, scheme: str = "https", ca: str | None = None) -> str:
+    """The QR link. `ca` = fingerprint of the laptop's own certificate authority: the Android
+    app pins it, so it trusts this laptop without a warning (the browser ignores it)."""
+    url = f"{scheme}://{ip}:{port}/?token={token}"
+    return f"{url}&ca={ca}" if ca else url
 
 
 def show_qr(url: str, png_path: Path | None = None) -> bool:

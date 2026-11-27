@@ -245,7 +245,7 @@ Full table with times: [docs/eval.md](docs/eval.md). Nothing is sent, called, bo
 
 The three misses were all "play the second video": YouTube puts ads between results, and in those runs only one real video was on screen, so PocketPilot said "I can only see 1 video" instead of clicking a guess.
 
-The local AI on its own picks the right command for **32 of 33 open-ended phrases (97%)**, including refusing "transfer 500 rupees", "delete all the files" and "log into my bank account" (`scripts/check_ai.py`; 4 more of the 37 phrases are caught by the instant phrases first). The miss: "accept the cookies popup" became a plain click instead of clicking the Accept button.
+The local AI on its own picks the right command for **32 of 33 open-ended phrases (97%)**, including refusing "transfer 500 rupees", "delete all the files" and "log into my bank account" (`scripts/check_ai.py`; 4 more of the 37 phrases are caught by the instant phrases first). The miss was "accept the cookies popup" (a plain click instead of the Accept button); that phrase is now handled by an instant rule.
 
 ## Development
 

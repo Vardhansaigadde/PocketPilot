@@ -7,12 +7,15 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
-from fastapi import FastAPI, Response, WebSocket, WebSocketDisconnect, status
+from fastapi import FastAPI, Request, Response, WebSocket, WebSocketDisconnect, status
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .input_control import Controller, dispatch
 from .pairing import check_token
 from .protocol import MAX_AUDIO_BYTES, Approve, BadMessage, Brightness, Lang, Say, Stop, parse_message
+
+from agent.commands import BadCommand, parse_command
 
 if TYPE_CHECKING:
     from agent.assistant import Assistant
@@ -20,6 +23,7 @@ if TYPE_CHECKING:
 log = logging.getLogger("pocketpilot.server")
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
+LOCAL_HOSTS = ("127.0.0.1", "::1")   # the local API (MCP bridge) only answers this laptop
 
 
 class Phones:
@@ -72,6 +76,57 @@ def create_app(
         async def ca_certificate() -> Response:
             # Only the public certificate is ever served, never a private key.
             return Response(ca_cert.read_bytes(), media_type="application/x-x509-ca-cert")
+
+    # ---- local API for other AI apps (v7, MCP bridge: pocketpilot_mcp.py) ---------------
+    # Only from this laptop (127.0.0.1) and only with the pairing token. Phones never use it.
+    def api_denied(request: Request) -> JSONResponse | None:
+        host = request.client.host if request.client else ""
+        if host not in LOCAL_HOSTS:
+            return JSONResponse({"ok": False, "reply": "Only programs on this laptop can use this."}, 403)
+        given = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+        if not check_token(given or None, token):
+            return JSONResponse({"ok": False, "reply": "Wrong or missing PocketPilot token."}, 401)
+        if assistant is None:
+            return JSONResponse({"ok": False, "reply": "Voice commands aren't running on the laptop "
+                                 "(PocketPilot was started with --no-voice)."}, 503)
+        return None
+
+    async def api_result(heard: str, job: Callable[[], list[dict]]) -> dict:
+        """Run it like a phone command and show it on the phone too (Approve cards included)."""
+        messages = await asyncio.to_thread(job)
+        await phones.broadcast([{"t": "heard", "text": f"AI app: {heard}"}, *messages])
+        first = next((m for m in messages if m.get("t") == "reply"), {})
+        return {
+            "ok": bool(first.get("ok", False)),
+            "reply": first.get("text", ""),
+            "needs_approval": any(m.get("t") == "approve_request" for m in messages),
+            "choices": next((m.get("options") for m in messages if m.get("t") == "choices"), None),
+        }
+
+    @app.post("/api/run", include_in_schema=False, response_model=None)
+    async def api_run(request: Request) -> JSONResponse | dict:
+        if (denied := api_denied(request)) is not None:
+            return denied
+        try:
+            body = await request.json()
+            cmd = parse_command(body.get("command") if isinstance(body, dict) else None)
+        except (BadCommand, ValueError) as exc:
+            return JSONResponse({"ok": False, "reply": f"Not an allowed PocketPilot command: {exc}"}, 422)
+        heard = ", ".join(f"{v}" for v in cmd.model_dump(exclude_none=True).values())
+        return await api_result(heard[:120], lambda: assistant.run_command(cmd, source="mcp"))
+
+    @app.post("/api/say", include_in_schema=False, response_model=None)
+    async def api_say(request: Request) -> JSONResponse | dict:
+        if (denied := api_denied(request)) is not None:
+            return denied
+        try:
+            body = await request.json()
+            text = str(body.get("text", "")).strip()[:300] if isinstance(body, dict) else ""
+        except ValueError:
+            text = ""
+        if not text:
+            return JSONResponse({"ok": False, "reply": "Say what PocketPilot should do."}, 422)
+        return await api_result(text, lambda: assistant.handle_text(text, source="mcp"))
 
     async def run_assistant(job: Callable[[], list[dict]]) -> None:
         """Run a slow assistant job in a worker thread, then tell every phone."""

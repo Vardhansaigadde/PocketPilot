@@ -118,6 +118,18 @@ class Assistant:
         finally:
             self._busy.release()
 
+    def run_command(self, cmd: Command, source: str = "mcp") -> list[dict]:
+        """One already-checked command from another AI app (v7, MCP). Same path as phone
+        commands: allow-listed actions only, Approve on the phone for risky ones, logged."""
+        if not self._busy.acquire(blocking=False):
+            return [reply("Still working on the last one…", ok=False)]
+        try:
+            said = f"{cmd.action}: " + ", ".join(
+                f"{k}={v}" for k, v in cmd.model_dump(exclude_none=True).items() if k != "action")
+            return self._speak(_outcome_messages(self._run(cmd, said.rstrip(": "), source)))
+        finally:
+            self._busy.release()
+
     def approve(self, approval_id: str, ok: bool) -> list[dict]:
         return self._speak([reply(self.executor.approvals.resolve(approval_id, ok))])
 

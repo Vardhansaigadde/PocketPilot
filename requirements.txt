@@ -16,3 +16,4 @@ winrt-Windows.Media.Ocr>=3.0
 winrt-Windows.Graphics.Imaging>=3.0
 winrt-Windows.Storage.Streams>=3.0
 winrt-Windows.Foundation>=3.0
+mcp>=2.3               # v7: MCP server so other AI apps can use PocketPilot (pocketpilot_mcp.py)

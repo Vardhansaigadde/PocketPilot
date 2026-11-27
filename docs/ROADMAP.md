@@ -47,7 +47,9 @@ Speak into the phone (mic button) or to the laptop ("Hey Pilot" wake word).
 README with demo GIF + eval table, 60–90 s demo video, LinkedIn post.
 
 ## v6 — Android app (after launch)
-- Native Android app (Flutter) with haptics and a Wake-on-LAN button; APK on GitHub Releases.
+- Android app (Flutter shell around the tested phone web app): QR pairing, finds the laptop again when its
+  Wi-Fi address changes (UDP discovery), trusts only this laptop's own certificate (no warning), native
+  speech (Telugu replies) and haptics; APK on GitHub Releases. No Wake-on-LAN button (owner's decision).
 
 ## v7 — Macros + MCP (after launch, Feb 15 – Mar 14)
 - "Watch me once": record a task, turn it into a reusable skill ("do my morning setup").

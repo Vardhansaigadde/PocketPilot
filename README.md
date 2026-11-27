@@ -275,7 +275,7 @@ Phone test checklists for each version: [v2](docs/v2-commands.md), [v3](docs/v3-
 | **v3 Smart click + screen explainer** ✅ | "Click the Login button", "summarize this page", "explain this error" |
 | **v4 Task agent** ✅ | Multi-step tasks, WhatsApp messages **and calls** with Approve, memory of what you did, currency/dictionary/news/cricket |
 | **v5 Telugu** ✅ | Telugu and Telugu–English voice commands, Telugu replies; "the second video", tabs |
-| v6 Android app | Native app with haptics and a Wake-on-LAN button |
+| v6 Android app | Installable app: finds the laptop when its address changes, no certificate warning |
 | v7 Macros + MCP | "Watch me once" skills, MCP server for other AI apps |
 
 Details: [docs/ROADMAP.md](docs/ROADMAP.md).

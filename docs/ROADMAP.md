@@ -46,7 +46,7 @@ Speak into the phone (mic button) or to the laptop ("Hey Pilot" wake word).
 ## Launch (Feb 14)
 README with demo GIF + eval table, 60–90 s demo video, LinkedIn post.
 
-## v6 — Android app (after launch)
+## v6 — Android app ✅ (done, phone-tested with `docs/v6-tests.md`)
 - Android app (Flutter shell around the tested phone web app): QR pairing, finds the laptop again when its
   Wi-Fi address changes (UDP discovery), trusts only this laptop's own certificate (no warning), native
   speech (Telugu replies) and haptics; APK on GitHub Releases. No Wake-on-LAN button (owner's decision).

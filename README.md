@@ -14,6 +14,7 @@ Zero cost: everything is open source and runs on your own laptop, on the CPU. No
 - **WhatsApp, safely:** "message Amma that I'll be late", "call Amma". It types the message, then waits: **nothing is sent or called until you tap Approve** on the phone.
 - **Telugu:** speak Telugu or Telugu mixed with English ("ammaki call cheyyi", "హైదరాబాద్‌లో వాతావరణం ఎలా ఉంది") and get the answer in Telugu.
 - **Reads the screen:** "summarize this page", "explain this error", "what's on my screen?".
+- **Android app (optional):** the same remote as an installable app, with no certificate warning, and it finds the laptop again when its Wi-Fi address changes ([details](#android-app)).
 
 **54 of 57 real tasks succeed (95%)** on a CPU-only laptop, across English, WhatsApp, Telugu and on-screen tasks ([how it was measured](#how-well-it-works)).
 
@@ -32,7 +33,7 @@ python run.py
 ```
 
 1. A QR code appears (in the terminal and as an image).
-2. Scan it with your phone camera and open the link.
+2. Scan it with your phone camera and open the link. Or, on Android, scan it with the [PocketPilot app](#android-app) instead (then skip step 3).
 3. The first time, the phone says the connection **isn't private**. That's expected: PocketPilot makes its own certificate on your laptop. Tap **Advanced → Proceed** (or [remove the warning for good](#optional-remove-the-not-private-warning-recommended)).
 4. If Windows asks about the firewall, allow **Private networks** only.
 5. Optional: in your phone browser menu, choose **Add to Home screen** so it opens like an app.
@@ -60,6 +61,26 @@ To make your phone trust them for good (Android):
 3. Reopen PocketPilot: no warning, and Add to Home screen works like a real app.
 
 This certificate can **only** vouch for home-network addresses (192.168.x.x, 10.x.x.x, 172.16–31.x.x) and `localhost`, so it can't be used to fake real websites. If you change Wi-Fi, PocketPilot makes a new server certificate automatically and the phone keeps trusting it. You can remove it any time in the same Settings screen.
+
+## Android app
+
+The same phone remote as an installable Android app (Android 7.0 or newer). It shows exactly the page a
+browser shows (touchpad, voice, Approve cards, Telugu) and adds what a browser can't do:
+
+- **No "not private" warning:** the QR code carries a fingerprint of your laptop's own certificate. The app
+  downloads the certificate once, keeps it only if the fingerprint matches, and then connects only to a
+  laptop whose certificate it signed. Nothing else is trusted.
+- **Finds the laptop again** when its Wi-Fi address changes (a small broadcast on the Wi-Fi; the laptop
+  answers only your paired phone, and the pairing token never goes over the air).
+- **Speaks replies with the phone's own voice**, Telugu included, and vibrates on taps.
+- The phone's **back button** opens a menu: Reload, Find the laptop again, Pair again.
+
+**Install:** download `PocketPilot.apk` from the [Releases page](https://github.com/Vardhansaigadde/PocketPilot/releases)
+on your phone, open it, and allow "install from this source" when Android asks. Then start
+`python run.py` on the laptop and scan its QR code with the app.
+
+**Build it yourself** (free: Flutter SDK + Android Studio): `cd android_app`, then `flutter build apk --release`.
+The code is in [`android_app/`](android_app/).
 
 ### If the phone can't connect
 - Phone and laptop must be on the same Wi-Fi. College and public Wi-Fi often block devices from talking to each other: use your **phone's hotspot** and connect the laptop to it.
@@ -216,6 +237,7 @@ flowchart LR
   - Understanding: `commands.py` (every allowed action), `router.py` (instant English phrases), `telugu.py` (Telugu rules and replies), `llm.py` (Ollama), `stt.py` (Whisper), `names.py` (learned WhatsApp names, sound-alike matching).
   - Doing: `executor.py`, `approvals.py`, `apps.py` (the only apps it can open), `windows.py` (bring windows forward, which app is in front), `grid.py`, `smart_click.py` (UI Automation + OCR), `results.py` (the nth result or video on screen), `whatsapp.py`, `task_agent.py` (plan-once tasks), `screen.py` + `explainer.py` (reading the screen), `memory.py` (history log), `laptop_voice.py` (wake word).
 - **skills/**: weather, air quality, Wikipedia, web search, websites, currency, dictionary (no keys); news and cricket (free keys).
+- **android_app/**: the Android app (Flutter). It shows the phone page in Android's web view and adds certificate pinning (`trust.dart` + `MainActivity.kt`), QR pairing, finding the laptop (`discovery.dart`, with `server/discovery.py` on the laptop), and speech/vibration (`web/native.js`).
 
 ## Safety
 

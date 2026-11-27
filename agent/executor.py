@@ -124,6 +124,11 @@ _SAY_MEDIA = {
     "volume_up": "Volume up.", "volume_down": "Volume down.", "mute": "Toggled mute.",
     "play_pause": "Play / pause.", "next": "Next track.", "prev": "Previous track.",
 }
+# Cookie banners name their buttons differently: try the usual wordings in this order
+_CONSENT_WORDS = {
+    "accept": ["accept all", "accept", "i agree", "agree", "allow all", "allow"],
+    "reject": ["reject all", "reject", "decline", "deny", "refuse", "necessary only", "only necessary"],
+}
 RESULT_RETRIES = 4         # re-reads of a browser page that showed nothing yet (~3 s)
 
 _SAY_HOTKEY = {
@@ -381,7 +386,11 @@ class Executor:
     def _smart_click(self, cmd: SmartClickCmd) -> Outcome:
         if self.clicker is None:
             return Outcome("Smart click isn't available. Say show grid instead.", ok=False)
-        hit = self.clicker.find(cmd.target)
+        hit = None
+        for word in _CONSENT_WORDS.get(cmd.target.lower(), [cmd.target]):
+            hit = self.clicker.find(word)
+            if hit is not None:
+                break
         if hit is None:
             return Outcome(f"I couldn't find {cmd.target} on the screen. Say show grid to pick it by number.",
                            ok=False)

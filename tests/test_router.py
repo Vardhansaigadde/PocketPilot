@@ -185,3 +185,12 @@ def test_same_name_contacts_by_voice(said, contact, kind, text):
 ])
 def test_spoken_maths_is_typed_as_symbols(said, typed):
     assert fast_path(said).text == typed
+
+
+@pytest.mark.parametrize("said, target", [
+    ("accept the cookies popup on this site", "accept"), ("accept all cookies", "accept"),
+    ("allow cookies", "accept"), ("reject cookies", "reject"), ("decline the cookie banner", "reject"),
+])
+def test_cookie_banner_phrases(said, target):
+    cmd = fast_path(said)
+    assert cmd.action == "click_on" and cmd.target == target

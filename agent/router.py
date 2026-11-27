@@ -318,6 +318,23 @@ _RESULT_NUMBER = re.compile(
 )
 
 
+# "accept the cookies popup on this site", "reject all cookies": click the banner's button by name
+_COOKIES = re.compile(
+    r"^(?:click )?(?P<verb>accept|allow|agree to|reject|decline|deny|refuse|block)(?: all)?(?: the)?"
+    r" cookies?(?: popup| pop up| pop-up| banner| prompt| message| notice| dialog| box)?"
+    r"(?: on (?:this|the) (?:site|page|website))?$",
+    re.I,
+)
+
+
+def _cookies_cmd(low: str) -> SmartClickCmd | None:
+    m = _COOKIES.match(low)
+    if not m:
+        return None
+    accept = m.group("verb").lower() in ("accept", "allow", "agree to")
+    return SmartClickCmd(action="click_on", target="accept" if accept else "reject")
+
+
 def _result_cmd(low: str) -> OpenResultCmd | None:
     m = _NTH_RESULT.match(low) or _RESULT_NUMBER.match(low)
     if not m:
@@ -363,6 +380,9 @@ def fast_path(text: str) -> Command | None:
                 button="right" if kind == "right click" else "left",
                 count=2 if kind.startswith("double") else 1,
             )
+
+    if cmd := _cookies_cmd(low):                      # the consent banner's Accept / Reject button
+        return cmd
 
     if cmd := _result_cmd(low):                       # before smart click: "click the second video"
         return cmd

@@ -47,3 +47,22 @@ def test_noisy_room_raises_the_threshold():
     hum = np.full(CHUNK, 1600, dtype=np.int16)
     assert feed(rec, [hum] * 30) is None  # hum isn't speech
     assert not rec.heard_speech
+
+
+def test_wake_word_settings(tmp_path):
+    import pytest
+    from agent.laptop_voice import _score, wake_word
+
+    w = wake_word(None)
+    assert (w.load, w.spoken, w.built_in) == ("hey_jarvis", "Hey Jarvis", True)
+    assert wake_word("alexa").spoken == "Alexa"
+    model = tmp_path / "hey_pilot_v0.1.onnx"
+    model.write_bytes(b"x")
+    custom = wake_word("hey_pilot_v0.1.onnx", data_dir=tmp_path)    # found in data/
+    assert (custom.load, custom.key, custom.spoken, custom.built_in) == (str(model), "hey_pilot_v0.1", "Hey Pilot", False)
+    with pytest.raises(ValueError):
+        wake_word("hey_pilot")                                       # not built in, no file
+    with pytest.raises(FileNotFoundError):
+        wake_word("missing.onnx", data_dir=tmp_path)
+    assert _score({"hey_jarvis_v0.1": 0.8}, "hey_jarvis") == 0.8
+    assert _score({"hey_pilot_v0.1": 0.7}, "hey_pilot_v0.1") == 0.7

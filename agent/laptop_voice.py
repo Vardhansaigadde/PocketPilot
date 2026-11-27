@@ -1,4 +1,4 @@
-"""Laptop microphone: say "Hey Jarvis", then your command.
+"""Laptop microphone: say the wake word ("Hey Jarvis" by default), then your command.
 
 Flow (all in one background thread):
   listen for the wake word (openWakeWord, tiny, CPU)
@@ -13,6 +13,8 @@ from __future__ import annotations
 import logging
 import queue
 import threading
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Callable
 
 import numpy as np
@@ -23,7 +25,41 @@ log = logging.getLogger("pocketpilot.laptop_voice")
 
 RATE = 16_000
 CHUNK = 1280                 # 80 ms, the size openWakeWord expects
-WAKE_MODEL = "hey_jarvis"    # swap for a custom "hey_pilot" model later
+WAKE_MODEL = "hey_jarvis"    # default; POCKETPILOT_WAKE_WORD picks another
+# Wake words openWakeWord can download ready-made. Anything else must be a trained .onnx file.
+BUILT_IN_WAKE_WORDS = ("hey_jarvis", "alexa", "hey_mycroft", "hey_rhasspy")
+
+
+@dataclass(frozen=True)
+class WakeWord:
+    load: str        # what openWakeWord loads: a built-in name, or the path of a .onnx model
+    key: str         # the name its predictions come back under
+    spoken: str      # what to say: "Hey Jarvis", "Hey Pilot"
+    built_in: bool
+
+
+def wake_word(setting: str | None, data_dir: Path | None = None) -> WakeWord:
+    """POCKETPILOT_WAKE_WORD -> what to load. 'hey_jarvis' (default), 'alexa', ... or a custom
+    model file such as 'hey_pilot.onnx' (looked for in data/), trained with openWakeWord."""
+    name = (setting or WAKE_MODEL).strip()
+    if name.lower().endswith(".onnx"):
+        path = Path(name)
+        if not path.is_absolute() and data_dir is not None and not path.exists():
+            path = data_dir / path
+        if not path.exists():
+            raise FileNotFoundError(f"wake word model {name} not found (put it in data/)")
+        stem = path.stem
+        return WakeWord(str(path), stem, _spoken(stem), built_in=False)
+    if name.lower() not in BUILT_IN_WAKE_WORDS:
+        raise ValueError(f"unknown wake word {name!r}: use one of {', '.join(BUILT_IN_WAKE_WORDS)} "
+                         "or a trained .onnx file")
+    return WakeWord(name.lower(), name.lower(), _spoken(name), built_in=True)
+
+
+def _spoken(stem: str) -> str:
+    """'hey_pilot_v0.1' -> 'Hey Pilot'."""
+    words = [w for w in stem.replace("-", "_").split("_") if w and not w[0].isdigit() and not w.startswith("v0")]
+    return " ".join(w.capitalize() for w in words) or stem
 WAKE_THRESHOLD = 0.5
 
 
@@ -74,7 +110,9 @@ class LaptopVoice:
         assistant: Assistant,
         broadcast: Callable[[list[dict]], None],
         speak_replies: bool = True,
+        wake: WakeWord | None = None,
     ) -> None:
+        self.wake = wake or wake_word(None)
         self.assistant = assistant
         self.broadcast = broadcast
         self.speak_replies = speak_replies
@@ -114,8 +152,11 @@ class LaptopVoice:
         import sounddevice as sd
         from openwakeword.model import Model
 
-        openwakeword.utils.download_models([WAKE_MODEL])   # once, ~5 MB, then cached
-        wake = Model(wakeword_models=[WAKE_MODEL], inference_framework="onnx")
+        if self.wake.built_in:
+            openwakeword.utils.download_models([self.wake.load])   # once, ~5 MB, then cached
+        else:
+            openwakeword.utils.download_models([])                 # only the shared audio models
+        wake = Model(wakeword_models=[self.wake.load], inference_framework="onnx")
         speaker = _Speaker() if self.speak_replies else None
         rec = Recorder()
         noise = 200.0
@@ -123,7 +164,7 @@ class LaptopVoice:
 
         with sd.InputStream(samplerate=RATE, channels=1, dtype="int16", blocksize=CHUNK,
                             callback=self._on_audio):
-            log.info('laptop mic on: say "Hey Jarvis" then a command')
+            log.info('laptop mic on: say "%s" then a command', self.wake.spoken)
             while not self._stop.is_set():
                 try:
                     chunk = self._audio.get(timeout=0.5)
@@ -132,7 +173,7 @@ class LaptopVoice:
                 if not recording:
                     level = rms(chunk)
                     noise = 0.95 * noise + 0.05 * level     # slowly track background noise
-                    if wake.predict(chunk).get(WAKE_MODEL, 0.0) >= WAKE_THRESHOLD:
+                    if _score(wake.predict(chunk), self.wake.key) >= WAKE_THRESHOLD:
                         wake.reset()
                         _beep()
                         self.broadcast([{"t": "listening", "on": True}])
@@ -187,3 +228,10 @@ class _Speaker:
             self.engine.runAndWait()
         except Exception:
             log.exception("could not speak")
+
+
+def _score(scores: dict, key: str) -> float:
+    """openWakeWord names results after the model ("hey_jarvis_v0.1" for "hey_jarvis")."""
+    if key in scores:
+        return float(scores[key])
+    return max((float(v) for k, v in scores.items() if k.startswith(key)), default=0.0)

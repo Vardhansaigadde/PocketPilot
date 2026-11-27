@@ -162,3 +162,20 @@ def test_emoji_count_as_words():
     assert normalize("Amma ❤️") == "amma heart" and normalize("Kidduuu 🎀") == "kidduuu ribbon"
     assert score("amma heart", "Amma ❤️") == 1.0
     assert score("amma heart", "Amma") == 0.0               # the heart means the other chat
+
+
+def test_reject_cookies_finds_a_decline_button():
+    from agent.approvals import Approvals
+    from agent.commands import SmartClickCmd
+    from agent.executor import Executor
+    from tests.test_dispatch import FakeController
+
+    class Clicker:
+        def find(self, target):
+            banner = [Candidate("Accept", "Button", (0, 0, 100, 30)), Candidate("Decline", "Button", (0, 40, 100, 70))]
+            return best_match(target, banner)
+
+    ctl = FakeController()
+    ex = Executor(ctl, Approvals(), clicker=Clicker(), launcher=lambda t: None, app_available=lambda t: True)
+    out = ex.run(SmartClickCmd(action="click_on", target="reject"))
+    assert out.ok and "Decline" in out.say and ("move_to", 50, 55) in ctl.calls

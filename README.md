@@ -138,11 +138,14 @@ Multi-step tasks use **plan once, then run simple commands**: the AI turns your 
 
 The phone always shows what it heard in quotes, so you can see what went wrong.
 
+**Wake word.** The laptop mic listens for **"Hey Jarvis"** by default. `POCKETPILOT_WAKE_WORD` in `.env` can switch it to another ready-made one (`alexa`, `hey_mycroft`, `hey_rhasspy`) or to your own: train a model such as "Hey Pilot" with openWakeWord's free training notebook (runs on Google Colab, about an hour), put the `.onnx` file in `data/`, and set `POCKETPILOT_WAKE_WORD=hey_pilot.onnx`.
+
 ## Smart click and the screen
 
 | Say | What happens |
 | --- | --- |
 | "click the Sign in button", "click Downloads", "right click on Documents", "double click My Pictures" | Finds that button, link or tab by its name and clicks it |
+| "accept the cookies popup", "reject cookies" | Clicks the cookie banner's button, whatever the site calls it (Accept all / I agree / Allow, or Reject all / Decline / Necessary only) |
 | "play the second video", "open the first result", "click the 3rd link", "open the last result", "రెండో వీడియో ప్లే చెయ్యి" | On YouTube, Google or Bing: counts the videos or results **you can see right now**, top to bottom, and opens that one. Ads, the AI answer box and menus are skipped. After scrolling, "the second video" is the second one on screen |
 | "what's on my screen?" | Describes the screen (vision model, about 40 s) |
 | "summarize this page" | 2-3 sentence summary of the page you're on (about 30-40 s) |

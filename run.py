@@ -92,11 +92,16 @@ def main() -> None:
 
     if assistant is not None and not args.no_wake:
         try:
-            from agent.laptop_voice import LaptopVoice
+            from agent.config import load_config
+            from agent.laptop_voice import LaptopVoice, wake_word
 
-            LaptopVoice(assistant, app.state.phones.broadcast_from_thread).start()
+            wake = wake_word(load_config(ROOT / ".env").wake_word, DATA)
+            LaptopVoice(assistant, app.state.phones.broadcast_from_thread, wake=wake).start()
+            print(f'  Laptop mic: say "{wake.spoken}" then a command')
         except ImportError as exc:
             print(f"  Laptop mic off (missing {exc.name}). Phone voice still works.")
+        except (ValueError, FileNotFoundError) as exc:
+            print(f"  Laptop mic off: {exc}. Phone voice still works.")
 
     # 0.0.0.0 = reachable from your Wi-Fi; the token keeps other devices out.
     uvicorn.run(app, host="0.0.0.0", port=args.port, log_level="warning", **ssl)
@@ -150,8 +155,7 @@ def build_assistant(controller, args):  # noqa: ANN001, ANN201 - kept simple for
     transcriber = WhisperTranscriber(cfg.whisper_model, names=cfg.contacts, known=known,
                                      telugu_model=cfg.telugu_whisper)
     transcriber.preload()
-    print(f"  Voice: Whisper {cfg.whisper_model}, AI model {planner.model} (Ollama)"
-          + (", laptop mic: say \"Hey Jarvis\"" if not args.no_wake else ""))
+    print(f"  Voice: Whisper {cfg.whisper_model}, AI model {planner.model} (Ollama)")
     assistant = Assistant(executor, planner=planner, transcriber=transcriber, memory=memory)
     assistant.agent = TaskAgent(plan=planner.plan_steps, to_command=assistant.to_command, act=assistant.act)
     return assistant

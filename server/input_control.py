@@ -58,6 +58,22 @@ def dispatch(msg: Message, ctl: Controller) -> dict | None:
     return None
 
 
+WHEEL_UNITS = 120   # Windows: one wheel notch = 120 units; smaller amounts scroll smoothly
+
+
+def fine_wheel_units(notches: float) -> int:
+    """Whole 1/120th-notch units in an amount of scrolling (towards zero)."""
+    return int(notches * WHEEL_UNITS)
+
+
+def _to_notches(units: int) -> float:
+    """Units -> the notches value pynput expects. pynput does int(value * 120), which can turn
+    5/120 into 4.999 -> 4, so add half a unit in the direction of travel."""
+    if not units:
+        return 0
+    return (units + (0.5 if units > 0 else -0.5)) / WHEEL_UNITS
+
+
 class PynputController:
     """The real thing: drives the Windows (or macOS/Linux) mouse and keyboard."""
 
@@ -125,14 +141,17 @@ class PynputController:
             self._held.discard(b)
 
     def scroll(self, dx: float, dy: float) -> None:
-        # Windows scrolls in whole notches, so keep the fractions and add them up.
+        # Smooth scrolling: Windows takes wheel movement in 1/120ths of a notch (like a
+        # laptop touchpad), so send every 1/120th straight away instead of waiting for a
+        # whole notch (that made the page stand still, then jump 3 lines at once).
         self._scroll_rest[0] += dx
         self._scroll_rest[1] += dy
-        sx, sy = int(self._scroll_rest[0]), int(self._scroll_rest[1])
-        if sx or sy:
-            self._scroll_rest[0] -= sx
-            self._scroll_rest[1] -= sy
-            self._mouse.scroll(sx, sy)
+        ux, uy = fine_wheel_units(self._scroll_rest[0]), fine_wheel_units(self._scroll_rest[1])
+        if ux or uy:
+            self._scroll_rest[0] -= ux / WHEEL_UNITS
+            self._scroll_rest[1] -= uy / WHEEL_UNITS
+            # pynput multiplies by 120 and truncates: the half unit keeps e.g. 5 from becoming 4
+            self._mouse.scroll(_to_notches(ux), _to_notches(uy))
 
     def zoom(self, steps: int) -> None:
         with self._keys.pressed(self._kb.Key.ctrl):
